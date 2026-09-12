@@ -19,6 +19,7 @@ export const colors = {
   petal: '#ffce4a',
   petalShadow: '#f2a93c',
   flowerCenter: '#6b4a2b',
+  flowerCenterDark: '#3a2413',
 
   personSkin: '#f3caa1',
   personHair: '#4a3226',
