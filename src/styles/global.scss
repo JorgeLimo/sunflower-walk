@@ -1,0 +1,37 @@
+@use './variables' as *;
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  background: $paper;
+}
+
+body {
+  font-family: $font-body;
+  color: $ink;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: $font-display;
+  font-weight: 400;
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+}
+
+::selection {
+  background: $petal-color;
+  color: $ink;
+}

@@ -1,0 +1,62 @@
+@use '../../styles/variables' as *;
+
+.toggle {
+  position: fixed;
+  right: clamp(14px, 3vw, 28px);
+  bottom: clamp(14px, 3vw, 28px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(74, 63, 53, 0.18);
+  border-radius: 999px;
+  background: rgba(251, 243, 227, 0.75);
+  backdrop-filter: blur(6px);
+  color: $ink;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
+  box-shadow: 0 6px 18px rgba(74, 63, 53, 0.12);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(74, 63, 53, 0.18);
+  }
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 14px;
+  height: 12px;
+
+  span {
+    width: 3px;
+    background: $sun-glow;
+    border-radius: 2px;
+    height: 35%;
+    transition: height 0.2s ease;
+  }
+}
+
+.toggle[data-muted='false'] .bars span {
+  animation: bounce 0.9s ease-in-out infinite;
+}
+.toggle[data-muted='false'] .bars span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.toggle[data-muted='false'] .bars span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    height: 30%;
+  }
+  50% {
+    height: 100%;
+  }
+}

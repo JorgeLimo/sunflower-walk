@@ -1,0 +1,15 @@
+// Paleta cálida compartida por los elementos HTML/UI (pantalla de
+// entrada, botón de música). Los colores de la escena 3D viven en
+// src/lib/colors.ts.
+$sun-glow: #ffb15e;
+$petal-color: #ffcf4d;
+
+$ink: #4a3f35;
+$paper: #fbf3e3;
+
+// Tipografía
+$font-display: 'Georgia', 'Iowan Old Style', serif;
+$font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+// Timing
+$ease-soft: cubic-bezier(0.45, 0, 0.55, 1);

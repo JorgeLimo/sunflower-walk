@@ -1,0 +1,44 @@
+@use '../../styles/variables' as *;
+
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.2rem;
+  background: radial-gradient(circle at 50% 40%, #fff6e0 0%, $paper 70%);
+}
+
+.title {
+  font-family: $font-display;
+  font-weight: 400;
+  font-size: clamp(1.4rem, 3.5vw, 2rem);
+  color: $ink;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+  text-align: center;
+  margin: 0;
+}
+
+.enterButton {
+  padding: 0.9rem 2.6rem;
+  border: 1px solid rgba(74, 63, 53, 0.25);
+  border-radius: 999px;
+  background: transparent;
+  color: $ink;
+  font-family: $font-display;
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.3s $ease-soft, color 0.3s $ease-soft, transform 0.3s $ease-soft;
+
+  &:hover {
+    background: $ink;
+    color: $paper;
+    transform: translateY(-2px);
+  }
+}

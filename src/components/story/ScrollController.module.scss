@@ -1,0 +1,15 @@
+.track {
+  position: relative;
+  width: 100%;
+  // Mucho más alto que cualquier sesión razonable de scroll: el
+  // recentrado casi nunca se dispara, así que nunca se siente.
+  height: 3000vh;
+}
+
+.pinned {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
