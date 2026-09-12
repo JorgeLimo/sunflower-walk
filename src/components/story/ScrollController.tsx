@@ -1,12 +1,21 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ScrollStateContext, type ScrollState, type ScrollStateRef } from './scrollContext';
 import { SCROLL_TO_WORLD } from '../../lib/constants';
+import { clamp } from '../../lib/random';
 import styles from './ScrollController.module.scss';
 
 /** Cuántas alturas de pantalla de margen se dejan antes de recentrar el
  * scroll. El track es enorme (ver ScrollController.module.scss) así que
  * esto solo se dispara tras muchísimo scroll continuo en una dirección. */
 const RECENTER_MARGIN_VH = 1;
+
+/** Tope al delta de un solo evento de scroll (en píxeles). Sin esto, un
+ * scroll rápido o un "fling" de trackpad podría inyectar un salto enorme de
+ * una sola vez en `rawDistance` — el suavizado de ScrollPhysics solo
+ * demora ESE salto, no lo reduce, así que la escena igual terminaría
+ * "disparándose" hacia adelante. Limitar el delta de entrada evita eso en
+ * la fuente, sin afectar el scroll a ritmo normal. */
+const MAX_SCROLL_DELTA_PX = 140;
 
 /**
  * Traduce el scroll de la página en una distancia de mundo *sin límite*.
@@ -42,8 +51,9 @@ export function ScrollController({ children }: { children: ReactNode }) {
 
     const handleScroll = () => {
       const y = window.scrollY;
-      const delta = y - lastScrollY.current;
+      const rawDelta = y - lastScrollY.current;
       lastScrollY.current = y;
+      const delta = clamp(rawDelta, -MAX_SCROLL_DELTA_PX, MAX_SCROLL_DELTA_PX);
       stateRef.current.rawDistance += delta * SCROLL_TO_WORLD;
       recenterIfNeeded();
     };

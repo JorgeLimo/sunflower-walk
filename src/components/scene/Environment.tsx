@@ -6,8 +6,15 @@ import { createSeededRandom, randomBetween } from '../../lib/random';
 import { MOUNTAIN_LOOP_LENGTH } from '../../lib/constants';
 import { useScrollState } from '../story/scrollContext';
 import { CHARACTER_Z } from '../../lib/walk';
-import { getCycleProgress, getSkyState, createSkyState } from '../../lib/dayNightCycle';
+import { getCycleProgress, getSkyState, createSkyState, getSunArcAngle } from '../../lib/dayNightCycle';
 import type { SkyState } from '../../lib/dayNightCycle';
+
+/** Mismo arco visual que usa `Sun.tsx`, para que la luz direccional que
+ * realmente ilumina la escena gire junto con el disco solar visible en vez
+ * de quedarse fija — así las sombras cambian de dirección a lo largo del
+ * día en vez de sentirse pegadas a un solo ángulo. */
+const SUN_LIGHT_ARC_WIDTH = 26;
+const SUN_LIGHT_HEIGHT = 24;
 
 const SKY_VERTEX = /* glsl */ `
   varying vec3 vWorldPosition;
@@ -149,8 +156,9 @@ function createDotTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-function FloatingParticles({ count }: { count: number }) {
+function FloatingParticles({ count, skyState }: { count: number; skyState: SkyState }) {
   const pointsRef = useRef<THREE.Points>(null);
+  const materialRef = useRef<THREE.PointsMaterial>(null);
   const dotTexture = useMemo(() => createDotTexture(), []);
 
   const { positions, seeds } = useMemo(() => {
@@ -177,6 +185,13 @@ function FloatingParticles({ count }: { count: number }) {
       attr.setX(i, positions[i * 3] + Math.sin(t * 0.15 + seeds[i]) * 0.6);
     }
     attr.needsUpdate = true;
+
+    // Chispas apagadas de día, apareciendo progresivamente en el atardecer
+    // y sutiles de noche: reutiliza la misma curva que las estrellas
+    // (`starOpacity`) en vez de mantener una opacidad fija todo el ciclo.
+    if (materialRef.current) {
+      materialRef.current.opacity = skyState.starOpacity * 0.5;
+    }
   });
 
   return (
@@ -186,11 +201,12 @@ function FloatingParticles({ count }: { count: number }) {
           <bufferAttribute attach="attributes-position" args={[positions.slice(0, count * 3), 3]} />
         </bufferGeometry>
         <pointsMaterial
+          ref={materialRef}
           map={dotTexture}
           color={colors.sunCore}
           size={0.07}
           transparent
-          opacity={0.6}
+          opacity={0}
           depthWrite={false}
           sizeAttenuation
         />
@@ -240,7 +256,13 @@ export function Environment({ particleCount, shadowMapSize }: EnvironmentProps) 
 
   useFrame(() => {
     const distance = scrollState.current.smoothDistance;
-    getSkyState(getCycleProgress(distance), skyState);
+    const cycle = getCycleProgress(distance);
+    getSkyState(cycle, skyState);
+
+    if (sunRef.current) {
+      const angle = getSunArcAngle(cycle);
+      sunRef.current.position.set(Math.cos(angle) * SUN_LIGHT_ARC_WIDTH, Math.sin(angle) * SUN_LIGHT_HEIGHT + 4, CHARACTER_Z + 12);
+    }
 
     if (fogRef.current) {
       fogRef.current.color.copy(skyState.fogColor);
@@ -270,7 +292,7 @@ export function Environment({ particleCount, shadowMapSize }: EnvironmentProps) 
     <>
       <SkyDome skyState={skyState} />
       <Mountains />
-      <FloatingParticles count={particleCount} />
+      <FloatingParticles count={particleCount} skyState={skyState} />
       <fogExp2 ref={fogRef} attach="fog" args={[colors.fogColor, 0.01]} />
 
       <hemisphereLight ref={hemiRef} args={[colors.skyTop, colors.groundNear, 0.6]} />

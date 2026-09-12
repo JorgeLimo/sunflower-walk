@@ -11,13 +11,16 @@ const RADIUS = 140;
 const VERTEX = /* glsl */ `
   attribute float aPhase;
   attribute float aSize;
+  attribute float aBrightness;
   uniform float uTime;
   varying float vTwinkle;
+  varying float vBrightness;
   void main() {
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    float twinkle = 0.65 + 0.35 * sin(uTime * 1.6 + aPhase);
+    float twinkle = 0.6 + 0.4 * sin(uTime * 1.6 + aPhase);
     vTwinkle = twinkle;
-    gl_PointSize = aSize * twinkle * (300.0 / -mvPosition.z);
+    vBrightness = aBrightness;
+    gl_PointSize = aSize * twinkle * (420.0 / -mvPosition.z);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -25,12 +28,13 @@ const VERTEX = /* glsl */ `
 const FRAGMENT = /* glsl */ `
   uniform float uOpacity;
   varying float vTwinkle;
+  varying float vBrightness;
   void main() {
     vec2 uv = gl_PointCoord - 0.5;
     float d = length(uv);
-    float alpha = smoothstep(0.5, 0.0, d) * uOpacity * vTwinkle;
+    float alpha = smoothstep(0.5, 0.0, d) * uOpacity * vTwinkle * vBrightness;
     if (alpha < 0.01) discard;
-    gl_FragColor = vec4(1.0, 1.0, 1.0, alpha);
+    gl_FragColor = vec4(1.0, 1.0, 1.0, min(alpha, 1.0));
   }
 `;
 
@@ -46,21 +50,27 @@ export function Stars({ count }: StarsProps) {
   const scrollState = useScrollState();
   const skyState = useRef(createSkyState()).current;
 
-  const { positions, phases, sizes } = useMemo(() => {
+  const { positions, phases, sizes, brightnesses } = useMemo(() => {
     const random = createSeededRandom(909);
     const pos = new Float32Array(count * 3);
     const phase = new Float32Array(count);
     const size = new Float32Array(count);
+    const brightness = new Float32Array(count);
     for (let i = 0; i < count; i++) {
       const theta = random() * Math.PI * 2;
-      const phi = randomBetween(random, 0, Math.PI * 0.48);
+      const phi = randomBetween(random, 0, Math.PI * 0.49);
       pos[i * 3] = RADIUS * Math.sin(phi) * Math.cos(theta);
       pos[i * 3 + 1] = RADIUS * Math.cos(phi);
       pos[i * 3 + 2] = RADIUS * Math.sin(phi) * Math.sin(theta);
       phase[i] = random() * Math.PI * 2;
-      size[i] = randomBetween(random, 1, random() < 0.12 ? 3.2 : 1.8);
+      // La mayoría son estrellas chicas y tenues; un pequeño puñado son
+      // notablemente más grandes y brillantes, para que el cielo no se vea
+      // parejo — algunas estrellas deben destacar sobre las demás.
+      const isBright = random() < 0.08;
+      size[i] = isBright ? randomBetween(random, 2.6, 4.4) : randomBetween(random, 1.2, 2.3);
+      brightness[i] = isBright ? randomBetween(random, 1.1, 1.5) : randomBetween(random, 0.7, 1.05);
     }
-    return { positions: pos, phases: phase, sizes: size };
+    return { positions: pos, phases: phase, sizes: size, brightnesses: brightness };
   }, [count]);
 
   const uniforms = useMemo(
@@ -87,6 +97,7 @@ export function Stars({ count }: StarsProps) {
           <bufferAttribute attach="attributes-position" args={[positions, 3]} />
           <bufferAttribute attach="attributes-aPhase" args={[phases, 1]} />
           <bufferAttribute attach="attributes-aSize" args={[sizes, 1]} />
+          <bufferAttribute attach="attributes-aBrightness" args={[brightnesses, 1]} />
         </bufferGeometry>
         <shaderMaterial
           ref={materialRef}

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { colors } from './colors';
-import { createSeededRandom } from './random';
+import { createSeededRandom, randomBetween } from './random';
 
 /**
  * Construye las geometrías de girasol estilizado. Cada girasol se divide en
@@ -37,8 +37,8 @@ const DETAIL_CONFIG: Record<SunflowerDetail, DetailConfig> = {
     stemRadialSegments: 8,
     leafCount: 4,
     leafSerration: 0.05,
-    outerPetalCount: 20,
-    innerPetalCount: 14,
+    outerPetalCount: 24,
+    innerPetalCount: 16,
     seedCount: 70,
     domeRadialSegments: 16,
   },
@@ -47,8 +47,8 @@ const DETAIL_CONFIG: Record<SunflowerDetail, DetailConfig> = {
     stemRadialSegments: 6,
     leafCount: 3,
     leafSerration: 0.035,
-    outerPetalCount: 14,
-    innerPetalCount: 9,
+    outerPetalCount: 17,
+    innerPetalCount: 11,
     seedCount: 34,
     domeRadialSegments: 12,
   },
@@ -175,13 +175,23 @@ function buildStrip(opts: StripOptions): THREE.BufferGeometry {
 
 function buildPetal(length: number, width: number, curl: number): THREE.BufferGeometry {
   return buildStrip({
-    lengthSegments: 3,
+    lengthSegments: 4,
     widthSegments: 3,
     length,
-    widthProfile: (t) => (width / 2) * Math.sin(Math.PI * Math.pow(t, 0.7)),
+    // Forma de "rayo" alargado: se ensancha rápido cerca de la base, se
+    // mantiene ancho durante buena parte del largo y recién en el último
+    // tramo se afina hasta la punta — en vez de un rombo simétrico que se
+    // infla y se achica parejo, que es lo que hacía ver los pétalos como
+    // bultos superpuestos en vez de rayos individuales separados.
+    widthProfile: (t) => {
+      const rampIn = Math.min(t / 0.16, 1);
+      const rampOut = t > 0.52 ? Math.max(0, 1 - (t - 0.52) / 0.48) : 1;
+      const shape = rampIn * Math.pow(rampOut, 0.85);
+      return (width / 2) * shape;
+    },
     heightProfile: (t, u) => {
       const bend = -curl * t * t;
-      const cup = Math.pow(Math.abs(u - 0.5) * 2, 2) * width * 0.14;
+      const cup = Math.pow(Math.abs(u - 0.5) * 2, 2) * width * 0.08;
       return bend + cup;
     },
     serration: 0,
@@ -202,12 +212,15 @@ function addPetalRing(
 ) {
   for (let i = 0; i < count; i++) {
     const baseAngle = (i / count) * Math.PI * 2 + phaseOffset;
-    const jitter = (rng() - 0.5) * ((Math.PI * 2) / count) * 0.55;
+    // Jitter angular moderado: suficiente para que no sea un abanico
+    // perfectamente uniforme, pero sin que los pétalos vecinos terminen
+    // amontonados unos sobre otros.
+    const jitter = (rng() - 0.5) * ((Math.PI * 2) / count) * 0.3;
     const angle = baseAngle + jitter;
-    const lengthJ = length * (0.82 + rng() * 0.32);
-    const widthJ = width * (0.8 + rng() * 0.35);
-    const curlJ = curl * (0.7 + rng() * 0.5);
-    const tiltJ = openAngleDeg + (rng() - 0.5) * 10;
+    const lengthJ = length * (0.88 + rng() * 0.22);
+    const widthJ = width * (0.85 + rng() * 0.25);
+    const curlJ = curl * (0.75 + rng() * 0.4);
+    const tiltJ = openAngleDeg + (rng() - 0.5) * 6;
 
     const petal = buildPetal(lengthJ, widthJ, curlJ);
     petal.rotateX(THREE.MathUtils.degToRad(-tiltJ));
@@ -350,15 +363,29 @@ export function createSunflowerStemGeometry(seed: number, detail: SunflowerDetai
     cursor.add(tipLocal);
   }
 
-  for (let i = 0; i < cfg.leafCount; i++) {
-    const along = (i + 1) / (cfg.leafCount + 1);
+  // Cada hoja elige al azar una de tres "actitudes" (colgando, hacia el
+  // lado, hacia arriba) y un ángulo alrededor del tallo totalmente libre —
+  // así una misma planta mezcla hojas mirando en direcciones distintas en
+  // vez de repetir siempre el mismo par simétrico a izquierda/derecha.
+  const leafCount = Math.max(2, cfg.leafCount + Math.round((rng() - 0.5) * 2.2));
+  for (let i = 0; i < leafCount; i++) {
+    const along = (i + 1) / (leafCount + 1);
     const attachY = stemHeight * (0.16 + along * 0.58);
-    const side = i % 2 === 0 ? 1 : -1;
-    const angleAround = bendDir + (Math.PI / 2) * side + (rng() - 0.5) * 0.7 + Math.PI * along * 0.35;
-    const sizeFactor = (1.2 - along * 0.55) * mat.headScale ** 0.5;
-    const leafLength = (0.32 + rng() * 0.08) * sizeFactor;
-    const leafWidth = (0.17 + rng() * 0.04) * sizeFactor;
-    const leaf = buildLeaf(rng, leafLength, leafWidth, cfg.leafSerration, 0.12 + rng() * 0.06, 22 + rng() * 16);
+    const angleAround = rng() * Math.PI * 2;
+    const sizeFactor = (1.2 - along * 0.5) * mat.headScale ** 0.5 * (0.85 + rng() * 0.3);
+    const leafLength = (0.3 + rng() * 0.1) * sizeFactor;
+    const leafWidth = (0.16 + rng() * 0.05) * sizeFactor;
+
+    const orientationRoll = rng();
+    const elevationDeg =
+      orientationRoll < 0.3
+        ? randomBetween(rng, -12, 8) // colgando, apuntando levemente hacia el suelo
+        : orientationRoll < 0.7
+          ? randomBetween(rng, 15, 35) // hacia los lados
+          : randomBetween(rng, 38, 60); // hacia arriba
+    const droop = orientationRoll < 0.3 ? randomBetween(rng, 0.22, 0.34) : randomBetween(rng, 0.08, 0.18);
+
+    const leaf = buildLeaf(rng, leafLength, leafWidth, cfg.leafSerration, droop, elevationDeg);
     leaf.rotateY(angleAround);
     leaf.translate(0, attachY, 0);
     parts.push(leaf);
@@ -386,29 +413,35 @@ export function createSunflowerHeadGeometry(seed: number, detail: SunflowerDetai
   const innerRadius = 0.24 * headScale;
   const domeRadius = 0.19 * headScale;
 
+  // Ligera variación de cantidad de pétalos por variante (no por instancia,
+  // ya que la geometría se comparte vía InstancedMesh) para que no todas
+  // las flores de un mismo nivel de detalle luzcan idénticas en conteo.
+  const outerPetalCount = Math.max(6, cfg.outerPetalCount + Math.round((rng() - 0.5) * 6));
+  const innerPetalCount = cfg.innerPetalCount > 0 ? Math.max(5, cfg.innerPetalCount + Math.round((rng() - 0.5) * 4)) : 0;
+
   addPetalRing(
     parts,
     rng,
-    cfg.outerPetalCount,
+    outerPetalCount,
     outerRadius,
-    0.34 * headScale * mat.petalLengthFactor,
-    0.15 * headScale,
+    0.4 * headScale * mat.petalLengthFactor,
+    0.115 * headScale,
     0.22 * headScale,
     mat.openAngleDeg,
     0,
   );
 
-  if (cfg.innerPetalCount > 0) {
+  if (innerPetalCount > 0) {
     addPetalRing(
       parts,
       rng,
-      cfg.innerPetalCount,
+      innerPetalCount,
       innerRadius,
-      0.2 * headScale * mat.petalLengthFactor,
-      0.1 * headScale,
+      0.24 * headScale * mat.petalLengthFactor,
+      0.078 * headScale,
       0.14 * headScale,
       mat.openAngleDeg + 12,
-      Math.PI / cfg.innerPetalCount,
+      Math.PI / innerPetalCount,
     );
   }
 

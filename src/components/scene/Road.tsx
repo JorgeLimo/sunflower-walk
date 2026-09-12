@@ -50,14 +50,17 @@ export function Road() {
           }}
           position={[0, 0.01, tileRenderZ(indices[slot], 0)]}
         >
+          {/* Un toque de emisivo constante (mismo truco que las montañas
+              lejanas) mantiene el camino reconocible de noche en vez de
+              volverse un gris uniforme casi negro bajo poca luz ambiente. */}
           <mesh geometry={fillGeometry} receiveShadow>
-            <meshStandardMaterial color={colors.roadFill} roughness={1} />
+            <meshStandardMaterial color={colors.roadFill} emissive={colors.roadFill} emissiveIntensity={0.1} roughness={1} />
           </mesh>
           <mesh geometry={edgeGeometry} position={[-ROAD_WIDTH / 2 + 0.05, 0.001, 0]} receiveShadow>
-            <meshStandardMaterial color={colors.roadEdge} roughness={1} />
+            <meshStandardMaterial color={colors.roadEdge} emissive={colors.roadEdge} emissiveIntensity={0.1} roughness={1} />
           </mesh>
           <mesh geometry={edgeGeometry} position={[ROAD_WIDTH / 2 - 0.05, 0.001, 0]} receiveShadow>
-            <meshStandardMaterial color={colors.roadEdge} roughness={1} />
+            <meshStandardMaterial color={colors.roadEdge} emissive={colors.roadEdge} emissiveIntensity={0.1} roughness={1} />
           </mesh>
         </group>
       ))}

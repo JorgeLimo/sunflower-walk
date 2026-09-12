@@ -20,8 +20,8 @@ export function ScrollPhysics() {
     const instantVelocity = (s.rawDistance - lastRaw.current) / dt;
     lastRaw.current = s.rawDistance;
 
-    s.velocity = damp(s.velocity, instantVelocity, 6, dt);
-    s.smoothDistance = damp(s.smoothDistance, s.rawDistance, 8, dt);
+    s.velocity = damp(s.velocity, instantVelocity, 4, dt);
+    s.smoothDistance = damp(s.smoothDistance, s.rawDistance, 5, dt);
   });
 
   return null;

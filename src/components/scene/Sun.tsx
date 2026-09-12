@@ -4,9 +4,15 @@ import * as THREE from 'three';
 import { colors } from '../../lib/colors';
 import { useScrollState } from '../story/scrollContext';
 import { CHARACTER_Z } from '../../lib/walk';
-import { getCycleProgress, getSkyState, createSkyState } from '../../lib/dayNightCycle';
+import { getCycleProgress, getSkyState, createSkyState, getSunArcAngle } from '../../lib/dayNightCycle';
 
-const RADIUS = 110;
+/** Ancho/alto del arco (no un radio de órbita completo — ver `getSunArcAngle`)
+ * y qué tan lejos del personaje se mantiene, elegidos para que el punto más
+ * alto del arco quede cómodamente dentro del encuadre de la cámara en vez
+ * de directamente sobre ella. */
+const ARC_WIDTH = 38;
+const ARC_HEIGHT = 20;
+const ARC_DEPTH = 42;
 
 function createGlowTexture() {
   const size = 256;
@@ -15,21 +21,24 @@ function createGlowTexture() {
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
   const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, 'rgba(255, 246, 214, 0.9)');
-  gradient.addColorStop(0.35, 'rgba(255, 214, 140, 0.45)');
-  gradient.addColorStop(1, 'rgba(255, 214, 140, 0)');
+  gradient.addColorStop(0, 'rgba(255, 248, 222, 0.95)');
+  gradient.addColorStop(0.32, 'rgba(255, 221, 150, 0.55)');
+  gradient.addColorStop(0.65, 'rgba(255, 200, 120, 0.18)');
+  gradient.addColorStop(1, 'rgba(255, 200, 120, 0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
   return new THREE.CanvasTexture(canvas);
 }
 
-/** El sol recorre un arco simple sobre el camino: alto a mediodía
- * (progreso de ciclo 0), bajo el horizonte a medianoche (progreso 0.5).
- * Se desvanece progresivamente al llegar la noche. */
+/** El sol recorre un arco de horizonte a horizonte (ver `getSunArcAngle` en
+ * `dayNightCycle.ts`), en vez de una órbita circular completa — así su
+ * punto más alto queda dentro del encuadre de la cámara y se desvanece
+ * justo al tocar el horizonte en vez de quedar invisible sobre el cenit. */
 export function Sun() {
   const groupRef = useRef<THREE.Group>(null);
   const coreMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const glowMaterialRef = useRef<THREE.SpriteMaterial>(null);
+  const haloMaterialRef = useRef<THREE.SpriteMaterial>(null);
   const glowTexture = useMemo(() => createGlowTexture(), []);
   const scrollState = useScrollState();
   const skyState = useRef(createSkyState()).current;
@@ -39,27 +48,35 @@ export function Sun() {
     const cycle = getCycleProgress(distance);
     getSkyState(cycle, skyState);
 
-    const angle = cycle * Math.PI * 2;
+    const angle = getSunArcAngle(cycle);
 
     if (groupRef.current) {
-      groupRef.current.position.set(
-        Math.sin(angle) * RADIUS * 0.55,
-        Math.cos(angle) * RADIUS,
-        CHARACTER_Z - RADIUS * 0.4,
-      );
+      groupRef.current.position.set(Math.cos(angle) * ARC_WIDTH, Math.sin(angle) * ARC_HEIGHT, CHARACTER_Z - ARC_DEPTH);
     }
 
     if (coreMaterialRef.current) coreMaterialRef.current.opacity = skyState.sunOpacity;
     if (glowMaterialRef.current) glowMaterialRef.current.opacity = skyState.sunOpacity;
+    if (haloMaterialRef.current) haloMaterialRef.current.opacity = skyState.sunOpacity * 0.5;
   });
 
   return (
     <group ref={groupRef}>
       <mesh>
-        <sphereGeometry args={[5, 16, 16]} />
+        <sphereGeometry args={[5.2, 20, 20]} />
         <meshBasicMaterial ref={coreMaterialRef} color={colors.sunCore} transparent />
       </mesh>
+      {/* Halo amplio y suave: le da presencia atmosférica sin verse como un
+          disco sólido agrandado. */}
       <sprite scale={[46, 46, 1]}>
+        <spriteMaterial
+          ref={haloMaterialRef}
+          map={glowTexture}
+          transparent
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </sprite>
+      <sprite scale={[24, 24, 1]}>
         <spriteMaterial
           ref={glowMaterialRef}
           map={glowTexture}

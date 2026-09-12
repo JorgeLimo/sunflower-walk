@@ -44,6 +44,12 @@ interface RawKeyframe {
 // Un ciclo completo día → atardecer → noche → amanecer → día. El primer y
 // último keyframe son idénticos para que el loop (t=1 → t=0) sea invisible.
 //
+// El reparto de los `t` NO es uniforme a propósito: día y noche son las
+// etapas largas del viaje (~36% del ciclo cada una), mientras que atardecer
+// y amanecer son transiciones rápidas (~14% cada una) — el cielo cambia de
+// color con fuerza en poco tramo y luego se sostiene, en vez de pasar la
+// mayor parte del ciclo a medio camino entre día y noche.
+//
 // Principio clave (día-por-noche, como en el cine de animación): la
 // iluminación NUNCA cae a valores extremadamente bajos. De noche, la luz
 // del sol se apaga casi del todo, pero una luz de luna fría toma el relevo
@@ -52,15 +58,15 @@ interface RawKeyframe {
 // negras u planas.
 const KEYFRAMES: RawKeyframe[] = [
   { t: 0.0, skyTop: '#8fb8d9', skyHorizon: '#ffd9a0', fog: '#f3d9ad', fogDensity: 0.009, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
-  { t: 0.14, skyTop: '#8fb0c8', skyHorizon: '#ffe4a0', fog: '#f2d9ab', fogDensity: 0.01, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
-  { t: 0.22, skyTop: '#7d90b0', skyHorizon: '#ff9d5c', fog: '#e9a56e', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ff9d5c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
-  { t: 0.3, skyTop: '#5c6f9c', skyHorizon: '#e87692', fog: '#c98a92', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#e8798f', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
-  { t: 0.38, skyTop: '#3d4d80', skyHorizon: '#7a6b9e', fog: '#6b6a94', fogDensity: 0.013, hemi: 0.48, ambient: 0.31, sunLight: 0.32, sunColor: '#c98cae', moonLight: 0.45, moonColor: '#9caeee', exposure: 0.95, star: 0.55, moon: 0.65, sun: 0.22, night: 0.75 },
-  { t: 0.5, skyTop: '#1c2750', skyHorizon: '#3a4178', fog: '#333b6b', fogDensity: 0.014, hemi: 0.44, ambient: 0.28, sunLight: 0.1, sunColor: '#8891c9', moonLight: 0.85, moonColor: '#aab4ff', exposure: 0.9, star: 1, moon: 1, sun: 0, night: 1 },
-  { t: 0.62, skyTop: '#1c2750', skyHorizon: '#3a4178', fog: '#333b6b', fogDensity: 0.014, hemi: 0.44, ambient: 0.28, sunLight: 0.1, sunColor: '#8891c9', moonLight: 0.85, moonColor: '#aab4ff', exposure: 0.9, star: 1, moon: 1, sun: 0, night: 1 },
-  { t: 0.7, skyTop: '#3d4d80', skyHorizon: '#7a6b9e', fog: '#6b6a94', fogDensity: 0.013, hemi: 0.48, ambient: 0.31, sunLight: 0.32, sunColor: '#c98cae', moonLight: 0.45, moonColor: '#9caeee', exposure: 0.95, star: 0.55, moon: 0.65, sun: 0.22, night: 0.75 },
-  { t: 0.78, skyTop: '#5c6f9c', skyHorizon: '#f0879a', fog: '#d1919a', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#f0879a', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
-  { t: 0.86, skyTop: '#7d90b0', skyHorizon: '#ffab6c', fog: '#eaab74', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ffab6c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
+  { t: 0.3, skyTop: '#8fb0c8', skyHorizon: '#ffe4a0', fog: '#f2d9ab', fogDensity: 0.01, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
+  { t: 0.33, skyTop: '#7d90b0', skyHorizon: '#ff9d5c', fog: '#e9a56e', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ff9d5c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
+  { t: 0.36, skyTop: '#5c6f9c', skyHorizon: '#e87692', fog: '#c98a92', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#e8798f', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
+  { t: 0.39, skyTop: '#3d4d80', skyHorizon: '#7a6b9e', fog: '#6b6a94', fogDensity: 0.013, hemi: 0.48, ambient: 0.31, sunLight: 0.32, sunColor: '#c98cae', moonLight: 0.45, moonColor: '#9caeee', exposure: 0.95, star: 0.55, moon: 0.65, sun: 0.22, night: 0.75 },
+  { t: 0.44, skyTop: '#1c2750', skyHorizon: '#3a4178', fog: '#333b6b', fogDensity: 0.014, hemi: 0.44, ambient: 0.28, sunLight: 0.1, sunColor: '#8891c9', moonLight: 0.85, moonColor: '#aab4ff', exposure: 0.9, star: 1, moon: 1, sun: 0, night: 1 },
+  { t: 0.8, skyTop: '#1c2750', skyHorizon: '#3a4178', fog: '#333b6b', fogDensity: 0.014, hemi: 0.44, ambient: 0.28, sunLight: 0.1, sunColor: '#8891c9', moonLight: 0.85, moonColor: '#aab4ff', exposure: 0.9, star: 1, moon: 1, sun: 0, night: 1 },
+  { t: 0.85, skyTop: '#3d4d80', skyHorizon: '#7a6b9e', fog: '#6b6a94', fogDensity: 0.013, hemi: 0.48, ambient: 0.31, sunLight: 0.32, sunColor: '#c98cae', moonLight: 0.45, moonColor: '#9caeee', exposure: 0.95, star: 0.55, moon: 0.65, sun: 0.22, night: 0.75 },
+  { t: 0.88, skyTop: '#5c6f9c', skyHorizon: '#f0879a', fog: '#d1919a', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#f0879a', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
+  { t: 0.91, skyTop: '#7d90b0', skyHorizon: '#ffab6c', fog: '#eaab74', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ffab6c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
   { t: 0.94, skyTop: '#8fb0c8', skyHorizon: '#ffe4a0', fog: '#f2d9ab', fogDensity: 0.01, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
   { t: 1.0, skyTop: '#8fb8d9', skyHorizon: '#ffd9a0', fog: '#f3d9ad', fogDensity: 0.009, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
 ];
@@ -133,4 +139,34 @@ export function getSkyState(cycleProgress: number, out?: SkyState): SkyState {
   result.nightFactor = THREE.MathUtils.lerp(a.night, b.night, eased);
 
   return result;
+}
+
+// El sol está visible (sunOpacity > 0) durante todo el ciclo salvo la meseta
+// nocturna [0.44, 0.80]; la luna está visible durante todo el ciclo salvo la
+// meseta diurna [0.94, 0.30]. En vez de una órbita circular completa (que
+// pone al astro en el cenit exactamente cuando más presente debería sentirse
+// — y por lo tanto fuera del encuadre de una cámara fija mirando al frente—,
+// mapeamos ese tramo "visible" a un arco de medio círculo: nace en el
+// horizonte, sube a su punto más alto a mitad de su tramo visible (que
+// coincide con opacidad 1) y vuelve a bajar al horizonte del otro lado.
+const SUN_ARC_START = 0.8;
+const SUN_ARC_SPAN = 0.64;
+const MOON_ARC_START = 0.3;
+const MOON_ARC_SPAN = 0.64;
+
+function arcProgress(cycleProgress: number, start: number, span: number): number {
+  let local = cycleProgress - start;
+  if (local < 0) local += 1;
+  return THREE.MathUtils.clamp(local / span, 0, 1);
+}
+
+/** Ángulo (0..π) del sol a lo largo de su arco visible: 0 y π son el
+ * horizonte, π/2 es el punto más alto (coincide con mediodía). */
+export function getSunArcAngle(cycleProgress: number): number {
+  return arcProgress(cycleProgress, SUN_ARC_START, SUN_ARC_SPAN) * Math.PI;
+}
+
+/** Igual que `getSunArcAngle` pero para la luna, desfasado medio ciclo. */
+export function getMoonArcAngle(cycleProgress: number): number {
+  return arcProgress(cycleProgress, MOON_ARC_START, MOON_ARC_SPAN) * Math.PI;
 }
