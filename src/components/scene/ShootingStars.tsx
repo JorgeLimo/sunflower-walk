@@ -6,8 +6,8 @@ import { useScrollState } from '../story/scrollContext';
 import { CHARACTER_Z } from '../../lib/walk';
 import { getCycleProgress, getSkyState, createSkyState } from '../../lib/dayNightCycle';
 
-const POOL_SIZE = 2;
-const TRAIL_LENGTH = 6;
+const POOL_SIZE = 1;
+const TRAIL_LENGTH = 10;
 const random = createSeededRandom(1313);
 
 type Phase = 'idle' | 'active';
@@ -24,11 +24,11 @@ interface ShootingStarState {
 function createState(): ShootingStarState {
   return {
     phase: 'idle',
-    timer: randomBetween(random, 6, 16),
+    timer: randomBetween(random, 10, 22),
     progress: 0,
     start: new THREE.Vector3(),
     end: new THREE.Vector3(),
-    duration: 1.2,
+    duration: 5,
   };
 }
 
@@ -122,7 +122,10 @@ function ShootingStar({ state, texture }: { state: ShootingStarState; texture: T
 /**
  * Estrellas fugaces ocasionales: solo pueden dispararse durante la noche
  * (nightFactor alto), en intervalos aleatorios largos, para que sean un
- * pequeño evento especial y no una constante.
+ * pequeño momento especial y no un efecto constante. Cruzan el cielo de
+ * derecha a izquierda, lento, en una franja siempre bien por delante del
+ * personaje/cámara (nunca cerca de esta) y por encima de donde caminan la
+ * persona y el Pug.
  */
 export function ShootingStars() {
   const scrollState = useScrollState();
@@ -141,12 +144,22 @@ export function ShootingStars() {
         if (state.timer <= 0 && skyState.nightFactor > 0.55) {
           state.phase = 'active';
           state.progress = 0;
-          state.duration = randomBetween(random, 0.9, 1.4);
-          const height = randomBetween(random, 28, 55);
-          const spanX = randomBetween(random, -50, 50);
-          const depth = randomBetween(random, -40, 10);
-          state.start.set(spanX - 35, height, CHARACTER_Z + depth);
-          state.end.set(spanX + 35, height - randomBetween(random, 14, 22), CHARACTER_Z + depth - 10);
+          state.duration = randomBetween(random, 6.5, 9.5);
+          // Altura moderada: por encima de la persona y el Pug, pero dentro
+          // del encuadre real de la cámara (que mira casi al frente, no
+          // hacia arriba) — igual que se ajustó el arco del sol/la luna.
+          const height = randomBetween(random, 13, 22);
+          // Recorrido corto y centrado: el trayecto completo debe caber
+          // dentro del campo visual de la cámara para que se vea de
+          // principio a fin, no solo un fragmento al cruzar el encuadre.
+          const spanX = randomBetween(random, -5, 5);
+          const travel = randomBetween(random, 30, 40);
+          const descent = randomBetween(random, 2, 5);
+          // Siempre bien adelante del personaje/cámara, nunca cerca.
+          const depth = CHARACTER_Z - randomBetween(random, 38, 52);
+          // Derecha -> izquierda: X decrece de start a end.
+          state.start.set(spanX + travel / 2, height, depth);
+          state.end.set(spanX - travel / 2, height - descent, depth);
         } else if (state.timer <= 0) {
           // No es de noche todavía: reintenta más tarde.
           state.timer = randomBetween(random, 2, 5);
@@ -155,7 +168,7 @@ export function ShootingStars() {
         state.progress += delta / state.duration;
         if (state.progress >= 1) {
           state.phase = 'idle';
-          state.timer = randomBetween(random, 8, 20);
+          state.timer = randomBetween(random, 10, 22);
         }
       }
     }

@@ -140,83 +140,7 @@ function Mountains() {
   );
 }
 
-const PARTICLE_COUNT_MAX = 220;
-
-function createDotTexture() {
-  const size = 32;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, 'rgba(255,255,255,1)');
-  gradient.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  return new THREE.CanvasTexture(canvas);
-}
-
-function FloatingParticles({ count, skyState }: { count: number; skyState: SkyState }) {
-  const pointsRef = useRef<THREE.Points>(null);
-  const materialRef = useRef<THREE.PointsMaterial>(null);
-  const dotTexture = useMemo(() => createDotTexture(), []);
-
-  const { positions, seeds } = useMemo(() => {
-    const random = createSeededRandom(555);
-    const pos = new Float32Array(PARTICLE_COUNT_MAX * 3);
-    const seed = new Float32Array(PARTICLE_COUNT_MAX);
-    for (let i = 0; i < PARTICLE_COUNT_MAX; i++) {
-      pos[i * 3] = randomBetween(random, -6, 6);
-      pos[i * 3 + 1] = randomBetween(random, 0.2, 3.2);
-      pos[i * 3 + 2] = randomBetween(random, -14, 6);
-      seed[i] = random() * Math.PI * 2;
-    }
-    return { positions: pos, seeds: seed };
-  }, []);
-
-  useFrame((state) => {
-    const points = pointsRef.current;
-    if (!points) return;
-    const t = state.clock.elapsedTime;
-    const attr = points.geometry.attributes.position as THREE.BufferAttribute;
-    for (let i = 0; i < count; i++) {
-      const baseY = positions[i * 3 + 1];
-      attr.setY(i, baseY + Math.sin(t * 0.4 + seeds[i]) * 0.3);
-      attr.setX(i, positions[i * 3] + Math.sin(t * 0.15 + seeds[i]) * 0.6);
-    }
-    attr.needsUpdate = true;
-
-    // Chispas apagadas de día, apareciendo progresivamente en el atardecer
-    // y sutiles de noche: reutiliza la misma curva que las estrellas
-    // (`starOpacity`) en vez de mantener una opacidad fija todo el ciclo.
-    if (materialRef.current) {
-      materialRef.current.opacity = skyState.starOpacity * 0.5;
-    }
-  });
-
-  return (
-    <group position={[0, 0, CHARACTER_Z + 2]}>
-      <points ref={pointsRef}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[positions.slice(0, count * 3), 3]} />
-        </bufferGeometry>
-        <pointsMaterial
-          ref={materialRef}
-          map={dotTexture}
-          color={colors.sunCore}
-          size={0.07}
-          transparent
-          opacity={0}
-          depthWrite={false}
-          sizeAttenuation
-        />
-      </points>
-    </group>
-  );
-}
-
 interface EnvironmentProps {
-  particleCount: number;
   shadowMapSize: number;
 }
 
@@ -230,7 +154,7 @@ interface EnvironmentProps {
  * personaje cambia de color directamente, así que todo sigue siendo
  * reconocible de noche.
  */
-export function Environment({ particleCount, shadowMapSize }: EnvironmentProps) {
+export function Environment({ shadowMapSize }: EnvironmentProps) {
   const { gl } = useThree();
   const scrollState = useScrollState();
   const skyState = useRef(createSkyState()).current;
@@ -292,7 +216,6 @@ export function Environment({ particleCount, shadowMapSize }: EnvironmentProps) 
     <>
       <SkyDome skyState={skyState} />
       <Mountains />
-      <FloatingParticles count={particleCount} skyState={skyState} />
       <fogExp2 ref={fogRef} attach="fog" args={[colors.fogColor, 0.01]} />
 
       <hemisphereLight ref={hemiRef} args={[colors.skyTop, colors.groundNear, 0.6]} />

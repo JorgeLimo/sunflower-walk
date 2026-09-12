@@ -17,10 +17,10 @@ const VERTEX = /* glsl */ `
   varying float vBrightness;
   void main() {
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    float twinkle = 0.6 + 0.4 * sin(uTime * 1.6 + aPhase);
+    float twinkle = 0.68 + 0.32 * sin(uTime * 1.6 + aPhase);
     vTwinkle = twinkle;
     vBrightness = aBrightness;
-    gl_PointSize = aSize * twinkle * (420.0 / -mvPosition.z);
+    gl_PointSize = aSize * twinkle * (600.0 / -mvPosition.z);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
@@ -63,12 +63,20 @@ export function Stars({ count }: StarsProps) {
       pos[i * 3 + 1] = RADIUS * Math.cos(phi);
       pos[i * 3 + 2] = RADIUS * Math.sin(phi) * Math.sin(theta);
       phase[i] = random() * Math.PI * 2;
-      // La mayoría son estrellas chicas y tenues; un pequeño puñado son
-      // notablemente más grandes y brillantes, para que el cielo no se vea
-      // parejo — algunas estrellas deben destacar sobre las demás.
-      const isBright = random() < 0.08;
-      size[i] = isBright ? randomBetween(random, 2.6, 4.4) : randomBetween(random, 1.2, 2.3);
-      brightness[i] = isBright ? randomBetween(random, 1.1, 1.5) : randomBetween(random, 0.7, 1.05);
+      // Tres niveles bien diferenciados: la mayoría chicas y tenues, un
+      // grupo mediano algo más notorio, y un puñado de "destacadas" mucho
+      // más grandes y brillantes — el cielo no debe verse parejo.
+      const roll = random();
+      if (roll < 0.05) {
+        size[i] = randomBetween(random, 4.4, 6.8);
+        brightness[i] = randomBetween(random, 1.3, 1.8);
+      } else if (roll < 0.28) {
+        size[i] = randomBetween(random, 2.6, 3.6);
+        brightness[i] = randomBetween(random, 1.0, 1.3);
+      } else {
+        size[i] = randomBetween(random, 1.5, 2.3);
+        brightness[i] = randomBetween(random, 0.7, 1.0);
+      }
     }
     return { positions: pos, phases: phase, sizes: size, brightnesses: brightness };
   }, [count]);
@@ -85,9 +93,16 @@ export function Stars({ count }: StarsProps) {
     const distance = scrollState.current.smoothDistance;
     getSkyState(getCycleProgress(distance), skyState);
 
-    uniforms.uTime.value = state.clock.elapsedTime;
-    uniforms.uOpacity.value = skyState.starOpacity;
-    void materialRef;
+    // Importante: se actualiza a través de `materialRef.current.uniforms`
+    // (el objeto de uniforms REAL del material montado), no del objeto
+    // `uniforms` de arriba — three.js clona ese objeto al crear el
+    // material, así que mutar la copia local nunca llegaba a la GPU y las
+    // estrellas quedaban congeladas en su opacidad inicial (invisibles).
+    const u = materialRef.current?.uniforms;
+    if (u) {
+      u.uTime.value = state.clock.elapsedTime;
+      u.uOpacity.value = skyState.starOpacity;
+    }
   });
 
   return (
@@ -107,6 +122,7 @@ export function Stars({ count }: StarsProps) {
           transparent
           depthWrite={false}
           fog={false}
+          blending={THREE.AdditiveBlending}
         />
       </points>
     </group>

@@ -35,7 +35,7 @@ export function World() {
       camera={{ position: [0, 2.1, 6.4], fov: settings.fov, near: 0.1, far: 300 }}
     >
       <ScrollPhysics />
-      <Environment particleCount={settings.particleCount} shadowMapSize={settings.shadowMapSize} />
+      <Environment shadowMapSize={settings.shadowMapSize} />
       <Sun />
       <Moon />
       <Stars count={settings.starCount} />

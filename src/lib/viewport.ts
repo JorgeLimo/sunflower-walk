@@ -42,7 +42,6 @@ export interface TierSettings {
   shadowMapSize: number;
   dpr: [number, number];
   sunflowersPerTile: SunflowerTierCounts;
-  particleCount: number;
   starCount: number;
   enableBloom: boolean;
   enableBirds: boolean;
@@ -55,8 +54,7 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     shadowMapSize: 1024,
     dpr: [1, 1.75],
     sunflowersPerTile: { foreground: 7, mid: 13, background: 24 },
-    particleCount: 200,
-    starCount: 2200,
+    starCount: 2600,
     enableBloom: true,
     enableBirds: true,
   },
@@ -66,8 +64,7 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     shadowMapSize: 768,
     dpr: [1, 1.5],
     sunflowersPerTile: { foreground: 5, mid: 10, background: 16 },
-    particleCount: 120,
-    starCount: 1500,
+    starCount: 1800,
     enableBloom: true,
     enableBirds: true,
   },
@@ -77,8 +74,7 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     shadowMapSize: 512,
     dpr: [1, 1.4],
     sunflowersPerTile: { foreground: 3, mid: 6, background: 10 },
-    particleCount: 60,
-    starCount: 900,
+    starCount: 1100,
     enableBloom: false,
     enableBirds: false,
   },
