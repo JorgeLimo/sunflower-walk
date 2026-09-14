@@ -184,7 +184,10 @@ function buildPetal(length: number, width: number, curl: number): THREE.BufferGe
     // infla y se achica parejo, que es lo que hacía ver los pétalos como
     // bultos superpuestos en vez de rayos individuales separados.
     widthProfile: (t) => {
-      const rampIn = Math.min(t / 0.16, 1);
+      // Llega al ancho completo enseguida (8% del largo, antes 16%) para
+      // que no quede una base angosta justo donde más se nota el hueco con
+      // el pétalo vecino.
+      const rampIn = Math.min(t / 0.08, 1);
       const rampOut = t > 0.52 ? Math.max(0, 1 - (t - 0.52) / 0.48) : 1;
       const shape = rampIn * Math.pow(rampOut, 0.85);
       return (width / 2) * shape;
@@ -214,11 +217,14 @@ function addPetalRing(
     const baseAngle = (i / count) * Math.PI * 2 + phaseOffset;
     // Jitter angular moderado: suficiente para que no sea un abanico
     // perfectamente uniforme, pero sin que los pétalos vecinos terminen
-    // amontonados unos sobre otros.
-    const jitter = (rng() - 0.5) * ((Math.PI * 2) / count) * 0.3;
+    // amontonados unos sobre otros ni dejen huecos grandes entre sí.
+    const jitter = (rng() - 0.5) * ((Math.PI * 2) / count) * 0.2;
     const angle = baseAngle + jitter;
     const lengthJ = length * (0.88 + rng() * 0.22);
-    const widthJ = width * (0.85 + rng() * 0.25);
+    // Nunca más angosto que el 95% del ancho base (antes bajaba a 85%): un
+    // pétalo demasiado angosto combinado con el jitter angular es lo que
+    // dejaba ver espacios de fondo entre pétalos vecinos.
+    const widthJ = width * (0.95 + rng() * 0.25);
     const curlJ = curl * (0.75 + rng() * 0.4);
     const tiltJ = openAngleDeg + (rng() - 0.5) * 6;
 
@@ -425,7 +431,7 @@ export function createSunflowerHeadGeometry(seed: number, detail: SunflowerDetai
     outerPetalCount,
     outerRadius,
     0.4 * headScale * mat.petalLengthFactor,
-    0.115 * headScale,
+    0.145 * headScale,
     0.22 * headScale,
     mat.openAngleDeg,
     0,
@@ -438,7 +444,7 @@ export function createSunflowerHeadGeometry(seed: number, detail: SunflowerDetai
       innerPetalCount,
       innerRadius,
       0.24 * headScale * mat.petalLengthFactor,
-      0.078 * headScale,
+      0.1 * headScale,
       0.14 * headScale,
       mat.openAngleDeg + 12,
       Math.PI / innerPetalCount,

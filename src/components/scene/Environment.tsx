@@ -178,7 +178,7 @@ export function Environment({ shadowMapSize }: EnvironmentProps) {
     gl.toneMapping = THREE.ACESFilmicToneMapping;
   }, [gl]);
 
-  useFrame(() => {
+  useFrame((state) => {
     const distance = scrollState.current.smoothDistance;
     const cycle = getCycleProgress(distance);
     getSkyState(cycle, skyState);
@@ -193,7 +193,10 @@ export function Environment({ shadowMapSize }: EnvironmentProps) {
       fogRef.current.density = skyState.fogDensity;
     }
     if (hemiRef.current) {
-      hemiRef.current.color.copy(skyState.skyTop);
+      // Rebote ambiental del cielo sobre el paisaje: usa `groundLightColor`
+      // (cálido, separado a propósito de `skyTop`) para que el cielo pueda
+      // verse más azul sin enfriar la iluminación del suelo/girasoles.
+      hemiRef.current.color.copy(skyState.groundLightColor);
       hemiRef.current.intensity = skyState.hemiIntensity;
     }
     if (ambientRef.current) {
@@ -202,7 +205,10 @@ export function Environment({ shadowMapSize }: EnvironmentProps) {
       ambientRef.current.color.copy(ambientColor);
     }
     if (sunRef.current) {
-      sunRef.current.intensity = skyState.sunLightIntensity;
+      // Variación muy sutil (como nubes finas pasando frente al sol) para
+      // que la luz del día no se sienta perfectamente estática.
+      const shimmer = 1 + Math.sin(state.clock.elapsedTime * 0.15) * 0.018;
+      sunRef.current.intensity = skyState.sunLightIntensity * shimmer;
       sunRef.current.color.copy(skyState.sunLightColor);
     }
     if (moonLightRef.current) {

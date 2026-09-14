@@ -4,6 +4,11 @@ import { CYCLE_LENGTH } from './constants';
 export interface SkyState {
   skyTop: THREE.Color;
   skyHorizon: THREE.Color;
+  /** Color "cielo" que alimenta la luz de hemisferio (rebote ambiental sobre
+   * el suelo/girasoles/personajes) — deliberadamente independiente de
+   * `skyTop`/`skyHorizon` (el cielo visual), así el paisaje puede seguir
+   * bañado en luz cálida aunque el cielo en sí se vea más azul y limpio. */
+  groundLightColor: THREE.Color;
   fogColor: THREE.Color;
   fogDensity: number;
   hemiIntensity: number;
@@ -26,6 +31,7 @@ interface RawKeyframe {
   t: number;
   skyTop: string;
   skyHorizon: string;
+  groundLight: string;
   fog: string;
   fogDensity: number;
   hemi: number;
@@ -50,6 +56,11 @@ interface RawKeyframe {
 // color con fuerza en poco tramo y luego se sostiene, en vez de pasar la
 // mayor parte del ciclo a medio camino entre día y noche.
 //
+// `groundLight` alimenta solo la luz de hemisferio (rebote ambiental sobre
+// el paisaje) y reutiliza a propósito los tonos que `skyTop` tenía antes de
+// separar el cielo visual — así la iluminación cálida del suelo/girasoles
+// no cambia aunque el cielo (skyTop/skyHorizon) ahora sea más limpio y azul.
+//
 // Principio clave (día-por-noche, como en el cine de animación): la
 // iluminación NUNCA cae a valores extremadamente bajos. De noche, la luz
 // del sol se apaga casi del todo, pero una luz de luna fría toma el relevo
@@ -57,18 +68,18 @@ interface RawKeyframe {
 // conservan su color y su forma tridimensional en vez de volverse siluetas
 // negras u planas.
 const KEYFRAMES: RawKeyframe[] = [
-  { t: 0.0, skyTop: '#8fb8d9', skyHorizon: '#ffd9a0', fog: '#f3d9ad', fogDensity: 0.009, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
-  { t: 0.3, skyTop: '#8fb0c8', skyHorizon: '#ffe4a0', fog: '#f2d9ab', fogDensity: 0.01, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
-  { t: 0.33, skyTop: '#7d90b0', skyHorizon: '#ff9d5c', fog: '#e9a56e', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ff9d5c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
-  { t: 0.36, skyTop: '#5c6f9c', skyHorizon: '#e87692', fog: '#c98a92', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#e8798f', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
-  { t: 0.39, skyTop: '#3d4d80', skyHorizon: '#7a6b9e', fog: '#6b6a94', fogDensity: 0.013, hemi: 0.48, ambient: 0.31, sunLight: 0.32, sunColor: '#c98cae', moonLight: 0.45, moonColor: '#9caeee', exposure: 0.95, star: 0.55, moon: 0.65, sun: 0.22, night: 0.75 },
-  { t: 0.44, skyTop: '#1c2750', skyHorizon: '#3a4178', fog: '#333b6b', fogDensity: 0.014, hemi: 0.44, ambient: 0.28, sunLight: 0.1, sunColor: '#8891c9', moonLight: 0.85, moonColor: '#aab4ff', exposure: 0.9, star: 1, moon: 1, sun: 0, night: 1 },
-  { t: 0.8, skyTop: '#1c2750', skyHorizon: '#3a4178', fog: '#333b6b', fogDensity: 0.014, hemi: 0.44, ambient: 0.28, sunLight: 0.1, sunColor: '#8891c9', moonLight: 0.85, moonColor: '#aab4ff', exposure: 0.9, star: 1, moon: 1, sun: 0, night: 1 },
-  { t: 0.85, skyTop: '#3d4d80', skyHorizon: '#7a6b9e', fog: '#6b6a94', fogDensity: 0.013, hemi: 0.48, ambient: 0.31, sunLight: 0.32, sunColor: '#c98cae', moonLight: 0.45, moonColor: '#9caeee', exposure: 0.95, star: 0.55, moon: 0.65, sun: 0.22, night: 0.75 },
-  { t: 0.88, skyTop: '#5c6f9c', skyHorizon: '#f0879a', fog: '#d1919a', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#f0879a', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
-  { t: 0.91, skyTop: '#7d90b0', skyHorizon: '#ffab6c', fog: '#eaab74', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ffab6c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
-  { t: 0.94, skyTop: '#8fb0c8', skyHorizon: '#ffe4a0', fog: '#f2d9ab', fogDensity: 0.01, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
-  { t: 1.0, skyTop: '#8fb8d9', skyHorizon: '#ffd9a0', fog: '#f3d9ad', fogDensity: 0.009, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
+  { t: 0.0, skyTop: '#7fb8e6', skyHorizon: '#eef1e2', groundLight: '#8fb8d9', fog: '#f3d9ad', fogDensity: 0.009, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
+  { t: 0.3, skyTop: '#7fb0d8', skyHorizon: '#eef0da', groundLight: '#8fb0c8', fog: '#f2d9ab', fogDensity: 0.01, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
+  { t: 0.33, skyTop: '#7d90b0', skyHorizon: '#ff9d5c', groundLight: '#7d90b0', fog: '#e9a56e', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ff9d5c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
+  { t: 0.36, skyTop: '#5c6f9c', skyHorizon: '#e87692', groundLight: '#5c6f9c', fog: '#c98a92', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#e8798f', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
+  { t: 0.39, skyTop: '#3d4d80', skyHorizon: '#7a6b9e', groundLight: '#3d4d80', fog: '#6b6a94', fogDensity: 0.013, hemi: 0.48, ambient: 0.31, sunLight: 0.32, sunColor: '#c98cae', moonLight: 0.45, moonColor: '#9caeee', exposure: 0.95, star: 0.55, moon: 0.65, sun: 0.22, night: 0.75 },
+  { t: 0.44, skyTop: '#1c2750', skyHorizon: '#3a4178', groundLight: '#1c2750', fog: '#333b6b', fogDensity: 0.014, hemi: 0.44, ambient: 0.28, sunLight: 0.1, sunColor: '#8891c9', moonLight: 0.85, moonColor: '#aab4ff', exposure: 0.9, star: 1, moon: 1, sun: 0, night: 1 },
+  { t: 0.8, skyTop: '#1c2750', skyHorizon: '#3a4178', groundLight: '#1c2750', fog: '#333b6b', fogDensity: 0.014, hemi: 0.44, ambient: 0.28, sunLight: 0.1, sunColor: '#8891c9', moonLight: 0.85, moonColor: '#aab4ff', exposure: 0.9, star: 1, moon: 1, sun: 0, night: 1 },
+  { t: 0.85, skyTop: '#3d4d80', skyHorizon: '#7a6b9e', groundLight: '#3d4d80', fog: '#6b6a94', fogDensity: 0.013, hemi: 0.48, ambient: 0.31, sunLight: 0.32, sunColor: '#c98cae', moonLight: 0.45, moonColor: '#9caeee', exposure: 0.95, star: 0.55, moon: 0.65, sun: 0.22, night: 0.75 },
+  { t: 0.88, skyTop: '#5c6f9c', skyHorizon: '#f0879a', groundLight: '#5c6f9c', fog: '#d1919a', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#f0879a', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
+  { t: 0.91, skyTop: '#7d90b0', skyHorizon: '#ffab6c', groundLight: '#7d90b0', fog: '#eaab74', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ffab6c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
+  { t: 0.94, skyTop: '#7fb0d8', skyHorizon: '#eef0da', groundLight: '#8fb0c8', fog: '#f2d9ab', fogDensity: 0.01, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
+  { t: 1.0, skyTop: '#7fb8e6', skyHorizon: '#eef1e2', groundLight: '#8fb8d9', fog: '#f3d9ad', fogDensity: 0.009, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
 ];
 
 const colorCache = new Map<string, THREE.Color>();
@@ -91,6 +102,7 @@ export function createSkyState(): SkyState {
   return {
     skyTop: new THREE.Color(),
     skyHorizon: new THREE.Color(),
+    groundLightColor: new THREE.Color(),
     fogColor: new THREE.Color(),
     fogDensity: 0,
     hemiIntensity: 0,
@@ -124,6 +136,7 @@ export function getSkyState(cycleProgress: number, out?: SkyState): SkyState {
 
   result.skyTop.copy(col(a.skyTop)).lerp(col(b.skyTop), eased);
   result.skyHorizon.copy(col(a.skyHorizon)).lerp(col(b.skyHorizon), eased);
+  result.groundLightColor.copy(col(a.groundLight)).lerp(col(b.groundLight), eased);
   result.fogColor.copy(col(a.fog)).lerp(col(b.fog), eased);
   result.sunLightColor.copy(col(a.sunColor)).lerp(col(b.sunColor), eased);
   result.moonLightColor.copy(col(a.moonColor)).lerp(col(b.moonColor), eased);

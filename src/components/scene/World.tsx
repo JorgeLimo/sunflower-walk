@@ -41,7 +41,7 @@ export function World() {
       <Stars count={settings.starCount} />
       <ShootingStars />
       {settings.enableBirds && <Birds />}
-      <Clouds count={tier === 'mobile' ? 4 : 8} />
+      <Clouds count={tier === 'mobile' ? 4 : 6} />
       <Terrain />
       <Road />
       <Sunflowers counts={settings.sunflowersPerTile} />

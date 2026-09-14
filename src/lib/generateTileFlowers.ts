@@ -36,6 +36,10 @@ interface Band {
   scaleMax: number;
   heightMin: number;
   heightMax: number;
+  /** Distancia mínima entre dos girasoles de esta franja, para que nunca
+   * queden dos prácticamente en el mismo lugar. Más grande en primer plano
+   * (plantas más grandes y cercanas) que en el fondo. */
+  minDist: number;
 }
 
 const BAND_DEFS: Record<SunflowerTier, Band> = {
@@ -46,6 +50,7 @@ const BAND_DEFS: Record<SunflowerTier, Band> = {
     scaleMax: 1.7,
     heightMin: 1.1,
     heightMax: 1.6,
+    minDist: 0.85,
   },
   mid: {
     xMin: ROAD_WIDTH / 2 + 2,
@@ -54,6 +59,7 @@ const BAND_DEFS: Record<SunflowerTier, Band> = {
     scaleMax: 1.15,
     heightMin: 0.8,
     heightMax: 1.2,
+    minDist: 0.5,
   },
   background: {
     xMin: ROAD_WIDTH / 2 + 12,
@@ -62,6 +68,7 @@ const BAND_DEFS: Record<SunflowerTier, Band> = {
     scaleMax: 0.9,
     heightMin: 0.55,
     heightMax: 0.95,
+    minDist: 0.3,
   },
 };
 
@@ -135,6 +142,36 @@ function pickWeighted(random: () => number, clusters: Cluster[], totalWeight: nu
   return clusters[clusters.length - 1];
 }
 
+function wrapZ(rawZ: number): number {
+  return (((rawZ + TILE_LENGTH / 2) % TILE_LENGTH) + TILE_LENGTH) % TILE_LENGTH - TILE_LENGTH / 2;
+}
+
+/** Genera un candidato (x,z) repetidas veces hasta que quede a al menos
+ * `minDist` de todos los ya colocados en `placed` (o se agoten los
+ * intentos, para no arriesgar quedarse atascado) — así dos girasoles nunca
+ * terminan prácticamente en el mismo lugar. Registra el resultado en
+ * `placed` antes de devolverlo. */
+function placeWithMinDistance(
+  maxAttempts: number,
+  minDist: number,
+  placed: { x: number; z: number }[],
+  generate: () => { x: number; z: number },
+): { x: number; z: number } {
+  const minDistSq = minDist * minDist;
+  let candidate = generate();
+  for (let attempt = 1; attempt < maxAttempts; attempt++) {
+    const tooClose = placed.some((p) => {
+      const dx = p.x - candidate.x;
+      const dz = p.z - candidate.z;
+      return dx * dx + dz * dz < minDistSq;
+    });
+    if (!tooClose) break;
+    candidate = generate();
+  }
+  placed.push(candidate);
+  return candidate;
+}
+
 /**
  * Distribuye `count` girasoles de una franja en un tile: la mayoría en unos
  * pocos clusters de tamaño desigual (con separación mínima entre ellos para
@@ -143,7 +180,13 @@ function pickWeighted(random: () => number, clusters: Cluster[], totalWeight: nu
  * regular: cada llamada usa el mismo `random` seedeado del tile, así que el
  * resultado es distinto por tile pero estable si se regenera.
  */
-function fillFlowers(random: () => number, count: number, band: Band, maturity: SunflowerMaturity): FlowerLocal[] {
+function fillFlowers(
+  random: () => number,
+  count: number,
+  band: Band,
+  maturity: SunflowerMaturity,
+  placed: { x: number; z: number }[],
+): FlowerLocal[] {
   const out: FlowerLocal[] = [];
   if (count === 0) return out;
 
@@ -151,8 +194,7 @@ function fillFlowers(random: () => number, count: number, band: Band, maturity: 
   const clusteredCount = count - isolatedCount;
   const maturityScale = maturity === 'young' ? 0.72 : 1;
 
-  const place = (x: number, rawZ: number) => {
-    const z = (((rawZ + TILE_LENGTH / 2) % TILE_LENGTH) + TILE_LENGTH) % TILE_LENGTH - TILE_LENGTH / 2;
+  const place = (x: number, z: number) => {
     out.push({
       x,
       z,
@@ -175,18 +217,24 @@ function fillFlowers(random: () => number, count: number, band: Band, maturity: 
 
     for (let i = 0; i < clusteredCount; i++) {
       const cluster = pickWeighted(random, clusters, totalWeight);
-      const jitterX = (random() + random() - 1) * cluster.spread * 0.45;
-      const absX = clamp(Math.abs(cluster.x + jitterX), band.xMin, band.xMax);
-      const x = cluster.side * absX;
-      const z = cluster.z + (random() + random() - 1) * cluster.spread;
+      const { x, z } = placeWithMinDistance(6, band.minDist, placed, () => {
+        const jitterX = (random() + random() - 1) * cluster.spread * 0.45;
+        const absX = clamp(Math.abs(cluster.x + jitterX), band.xMin, band.xMax);
+        const cx = cluster.side * absX;
+        const cz = wrapZ(cluster.z + (random() + random() - 1) * cluster.spread);
+        return { x: cx, z: cz };
+      });
       place(x, z);
     }
   }
 
   for (let i = 0; i < isolatedCount; i++) {
-    const side = random() < 0.5 ? -1 : 1;
-    const x = side * randomBetween(random, band.xMin, band.xMax);
-    const z = randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2);
+    const { x, z } = placeWithMinDistance(6, band.minDist, placed, () => {
+      const side = random() < 0.5 ? -1 : 1;
+      const cx = side * randomBetween(random, band.xMin, band.xMax);
+      const cz = randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2);
+      return { x: cx, z: cz };
+    });
     place(x, z);
   }
 
@@ -205,8 +253,11 @@ export function generateTileFlowers(index: number, counts: SunflowerTierCounts):
 
   TIERS.forEach((tier) => {
     const band = BAND_DEFS[tier];
-    result[`${tier}-mature`] = fillFlowers(random, variantCounts[`${tier}-mature`], band, 'mature');
-    result[`${tier}-young`] = fillFlowers(random, variantCounts[`${tier}-young`], band, 'young');
+    // Un único registro de posiciones compartido entre maduros y jóvenes
+    // de la MISMA franja, para que tampoco terminen superpuestos entre sí.
+    const placed: { x: number; z: number }[] = [];
+    result[`${tier}-mature`] = fillFlowers(random, variantCounts[`${tier}-mature`], band, 'mature', placed);
+    result[`${tier}-young`] = fillFlowers(random, variantCounts[`${tier}-young`], band, 'young', placed);
   });
 
   return result;
