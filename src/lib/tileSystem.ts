@@ -7,18 +7,30 @@ export function createInitialTileIndices(): number[] {
 }
 
 /**
- * Avanza (recicla) los índices que quedaron atrás del rango visible,
- * saltándolos hacia adelante en múltiplos de TOTAL_TILES. Es un buffer
+ * Recicla los índices que quedaron fuera del rango visible, saltándolos en
+ * múltiplos de TOTAL_TILES hacia el lado que corresponda. Es un buffer
  * circular: siempre hay exactamente TOTAL_TILES índices consecutivos
  * cubriendo [targetMinIndex, targetMinIndex + TOTAL_TILES - 1].
+ *
+ * Debe ser bidireccional: al avanzar, los índices que quedaron atrás saltan
+ * hacia adelante (rama de abajo); pero al RETROCEDER, `targetMinIndex` baja
+ * y son los índices que quedaron demasiado adelantados los que hay que traer
+ * hacia atrás (rama de arriba). Sin esta segunda rama, retroceder lo
+ * suficiente deja los 9 tiles varados por delante del rango visible y no
+ * queda ningún camino renderizado alrededor del personaje.
  *
  * Devuelve qué slots se reciclaron este frame (para regenerar su contenido).
  */
 export function recycleTileIndices(indices: number[], targetMinIndex: number): boolean[] {
+  const targetMaxIndex = targetMinIndex + TOTAL_TILES - 1;
   const recycled = new Array(indices.length).fill(false);
   for (let slot = 0; slot < indices.length; slot++) {
     while (indices[slot] < targetMinIndex) {
       indices[slot] += TOTAL_TILES;
+      recycled[slot] = true;
+    }
+    while (indices[slot] > targetMaxIndex) {
+      indices[slot] -= TOTAL_TILES;
       recycled[slot] = true;
     }
   }

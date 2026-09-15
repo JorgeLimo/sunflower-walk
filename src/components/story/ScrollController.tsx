@@ -18,12 +18,16 @@ const RECENTER_MARGIN_VH = 1;
 const MAX_SCROLL_DELTA_PX = 140;
 
 /**
- * Traduce el scroll de la página en una distancia de mundo *sin límite*.
- * El truco: el documento tiene un scroll acotado (un track de altura fija),
- * pero cuando el usuario se acerca a cualquiera de los dos extremos, la
- * posición de scroll se recentra silenciosamente — el delta de ese salto
+ * Traduce el scroll de la página en una distancia de mundo. Hacia adelante
+ * no tiene límite: el documento tiene un scroll acotado (un track de altura
+ * fija), pero cuando el usuario se acerca a cualquiera de los dos extremos,
+ * la posición de scroll se recentra silenciosamente — el delta de ese salto
  * se descarta, así que la distancia acumulada nunca "choca" contra nada.
- * Esto es lo que permite que el mundo se sienta infinito en ambas direcciones.
+ *
+ * Hacia atrás SÍ hay un límite: `rawDistance` nunca baja de 0 (el comienzo
+ * del recorrido). Sin este piso, retroceder lo suficiente sacaba a la
+ * persona del tramo de camino generado y dejaba ver césped vacío sin
+ * camino — retroceder más allá del inicio simplemente no mueve el mundo.
  */
 export function ScrollController({ children }: { children: ReactNode }) {
   const stateRef = useRef<ScrollStateRef>({
@@ -54,7 +58,7 @@ export function ScrollController({ children }: { children: ReactNode }) {
       const rawDelta = y - lastScrollY.current;
       lastScrollY.current = y;
       const delta = clamp(rawDelta, -MAX_SCROLL_DELTA_PX, MAX_SCROLL_DELTA_PX);
-      stateRef.current.rawDistance += delta * SCROLL_TO_WORLD;
+      stateRef.current.rawDistance = Math.max(0, stateRef.current.rawDistance + delta * SCROLL_TO_WORLD);
       recenterIfNeeded();
     };
 

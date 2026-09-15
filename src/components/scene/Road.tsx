@@ -14,7 +14,11 @@ interface LightPost {
   z: number;
 }
 
-const LIGHTS_PER_SIDE = 2;
+// Más faroles y más juntos que antes (antes 2 por lado cada TILE_LENGTH,
+// es decir uno cada 16 unidades) para que el recorrido se sienta iluminado
+// de forma continua, sin tramos largos a oscuras entre uno y otro — pero
+// sin llegar a verse pegados entre sí.
+const LIGHTS_PER_SIDE = 4;
 
 /**
  * Reparto de faroles para UN slot del camino: intervalos regulares (uno
@@ -30,7 +34,7 @@ function generateSlotLights(slot: number): LightPost[] {
   for (const side of [-1, 1]) {
     for (let i = 0; i < LIGHTS_PER_SIDE; i++) {
       const baseZ = -TILE_LENGTH / 2 + (TILE_LENGTH * (i + 0.5)) / LIGHTS_PER_SIDE;
-      const z = baseZ + randomBetween(random, -2, 2);
+      const z = baseZ + randomBetween(random, -1.4, 1.4);
       // Separados del camino a propósito (nunca pegados al borde).
       const x = side * (ROAD_WIDTH / 2 + randomBetween(random, 0.35, 0.75));
       posts.push({ x, z });
@@ -40,6 +44,14 @@ function generateSlotLights(slot: number): LightPost[] {
 }
 
 const SLOT_LIGHTS: LightPost[][] = Array.from({ length: TOTAL_TILES }, (_, slot) => generateSlotLights(slot));
+
+// Cuántos faroles reales (con `pointLight` de verdad, no solo emisivo) hay
+// activos a la vez por lado. Se reasignan dinámicamente al farol físico más
+// cercano al personaje en cada frame (ver más abajo) en vez de vivir en un
+// desplazamiento fijo respecto a CHARACTER_Z — así la luz "de verdad" viaja
+// de farol en farol a medida que se avanza, en vez de sentirse flotando en
+// un punto fijo del aire mientras el camino se desliza debajo.
+const NEAR_LIGHTS_PER_SIDE = 3;
 
 /**
  * El camino se construye con un número fijo de segmentos ("tiles") que se
@@ -80,6 +92,15 @@ export function Road() {
   );
 
   const nearLightRefs = useRef<(THREE.PointLight | null)[]>([]);
+  // Scratch reutilizado cuadro a cuadro (sin asignar arrays/objetos nuevos
+  // en el loop de useFrame): para cada lado, las N distancias/posiciones de
+  // los faroles físicos más cercanos al personaje encontrados este frame.
+  const nearBestDist = useRef([
+    new Array(NEAR_LIGHTS_PER_SIDE).fill(Infinity),
+    new Array(NEAR_LIGHTS_PER_SIDE).fill(Infinity),
+  ]).current;
+  const nearBestX = useRef([new Array(NEAR_LIGHTS_PER_SIDE).fill(0), new Array(NEAR_LIGHTS_PER_SIDE).fill(0)]).current;
+  const nearBestZ = useRef([new Array(NEAR_LIGHTS_PER_SIDE).fill(0), new Array(NEAR_LIGHTS_PER_SIDE).fill(0)]).current;
 
   const fillGeometry = useMemo(() => {
     const geo = new THREE.PlaneGeometry(ROAD_WIDTH, TILE_LENGTH, 1, 1);
@@ -109,8 +130,51 @@ export function Road() {
     // los faroles "lejanos", así que un único write por frame los mueve a
     // todos a la vez.
     lightMaterial.emissiveIntensity = skyState.nightFactor * 1.6;
-    for (const light of nearLightRefs.current) {
-      if (light) light.intensity = skyState.nightFactor * 1.1;
+
+    // Encontrar, a cada lado, los N faroles físicos (de CUALQUIER slot, ya
+    // reposicionado este mismo frame) más cercanos al personaje. Inserción
+    // manual en un top-N chico: nada de arrays temporales ni de ordenar.
+    for (let side = 0; side < 2; side++) {
+      for (let i = 0; i < NEAR_LIGHTS_PER_SIDE; i++) nearBestDist[side][i] = Infinity;
+    }
+    for (let slot = 0; slot < TOTAL_TILES; slot++) {
+      const group = groupRefs.current[slot];
+      if (!group) continue;
+      const worldZ = group.position.z;
+      for (const post of SLOT_LIGHTS[slot]) {
+        const side = post.x < 0 ? 0 : 1;
+        const z = worldZ + post.z;
+        const d = Math.abs(z - CHARACTER_Z);
+        const dists = nearBestDist[side];
+        if (d >= dists[NEAR_LIGHTS_PER_SIDE - 1]) continue;
+        let insertAt = NEAR_LIGHTS_PER_SIDE - 1;
+        while (insertAt > 0 && dists[insertAt - 1] > d) {
+          dists[insertAt] = dists[insertAt - 1];
+          nearBestX[side][insertAt] = nearBestX[side][insertAt - 1];
+          nearBestZ[side][insertAt] = nearBestZ[side][insertAt - 1];
+          insertAt--;
+        }
+        dists[insertAt] = d;
+        nearBestX[side][insertAt] = post.x;
+        nearBestZ[side][insertAt] = z;
+      }
+    }
+
+    // Cada `pointLight` real "salta" al farol físico que le toca este
+    // frame — nunca vive en una posición fija del mundo, así que a medida
+    // que se avanza siempre es un farol de verdad el que está encendido
+    // junto al personaje, y va cambiando de mano en mano con el recorrido.
+    for (let side = 0; side < 2; side++) {
+      for (let i = 0; i < NEAR_LIGHTS_PER_SIDE; i++) {
+        const light = nearLightRefs.current[side * NEAR_LIGHTS_PER_SIDE + i];
+        if (!light) continue;
+        if (Number.isFinite(nearBestDist[side][i])) {
+          light.position.set(nearBestX[side][i], 0.5, nearBestZ[side][i]);
+          light.intensity = skyState.nightFactor * 0.85;
+        } else {
+          light.intensity = 0;
+        }
+      }
     }
   });
 
@@ -145,29 +209,29 @@ export function Road() {
         </group>
       ))}
 
-      {/* Solo un puñado de faroles "cercanos" (los que van a estar siempre
-          junto al personaje, sin importar qué tile físico les toque en
-          este momento) llevan además una luz real de rango corto — así el
-          camino y el césped/tallos inmediatos alrededor del personaje se
-          ven realmente iluminados de noche, sin montar una PointLight por
-          cada farol del camino. */}
-      {[-9, 3].map((zOffset, pairIndex) => (
-        <group key={pairIndex}>
-          {[-1, 1].map((side) => (
-            <pointLight
-              key={side}
-              ref={(el) => {
-                nearLightRefs.current[pairIndex * 2 + (side === -1 ? 0 : 1)] = el;
-              }}
-              position={[side * (ROAD_WIDTH / 2 + 0.55), 0.5, CHARACTER_Z + zOffset]}
-              color={colors.sunGlow}
-              intensity={0}
-              distance={5}
-              decay={2}
-            />
-          ))}
-        </group>
-      ))}
+      {/* Solo un puñado de luces reales (no una por farol): cada una se
+          reposiciona cuadro a cuadro sobre el farol físico más cercano al
+          personaje de su lado (ver useFrame más arriba), así que siempre es
+          un farol de verdad el que ilumina el camino/césped/girasoles
+          cercanos, y ese farol cambia a medida que se avanza — nunca queda
+          una luz flotando en un punto fijo del aire. El resto de los
+          faroles (la mayoría) solo brillan por su propio material emisivo,
+          sin costo de una PointLight adicional. */}
+      {[0, 1].map((side) =>
+        Array.from({ length: NEAR_LIGHTS_PER_SIDE }).map((_, i) => (
+          <pointLight
+            key={`${side}-${i}`}
+            ref={(el) => {
+              nearLightRefs.current[side * NEAR_LIGHTS_PER_SIDE + i] = el;
+            }}
+            position={[(side === 0 ? -1 : 1) * (ROAD_WIDTH / 2 + 0.55), 0.5, CHARACTER_Z]}
+            color={colors.sunGlow}
+            intensity={0}
+            distance={4.2}
+            decay={2}
+          />
+        )),
+      )}
     </>
   );
 }
