@@ -68,8 +68,13 @@ interface RawKeyframe {
 // conservan su color y su forma tridimensional en vez de volverse siluetas
 // negras u planas.
 const KEYFRAMES: RawKeyframe[] = [
-  { t: 0.0, skyTop: '#7fb8e6', skyHorizon: '#eef1e2', groundLight: '#8fb8d9', fog: '#f3d9ad', fogDensity: 0.009, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
-  { t: 0.3, skyTop: '#7fb0d8', skyHorizon: '#eef0da', groundLight: '#8fb0c8', fog: '#f2d9ab', fogDensity: 0.01, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
+  // Niebla diurna aclarada/enfriada (antes '#f3d9ad'/'#f2d9ab', un tostado
+  // bastante saturado que teñía todo el paisaje de amarillo incluso con un
+  // cielo ya azul) — un blanco cálido mucho más pálido, para que el
+  // mediodía se lea como "cielo azul claro" en vez de dorado-brumoso. Solo
+  // se toca de día (t: 0.0 y 0.3); atardecer/noche quedan igual.
+  { t: 0.0, skyTop: '#7fb8e6', skyHorizon: '#eef1e2', groundLight: '#8fb8d9', fog: '#eef1e6', fogDensity: 0.0065, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
+  { t: 0.3, skyTop: '#7fb0d8', skyHorizon: '#eef0da', groundLight: '#8fb0c8', fog: '#eceee0', fogDensity: 0.0075, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
   { t: 0.33, skyTop: '#7d90b0', skyHorizon: '#ff9d5c', groundLight: '#7d90b0', fog: '#e9a56e', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ff9d5c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
   { t: 0.36, skyTop: '#5c6f9c', skyHorizon: '#e87692', groundLight: '#5c6f9c', fog: '#c98a92', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#e8798f', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
   { t: 0.39, skyTop: '#3d4d80', skyHorizon: '#7a6b9e', groundLight: '#3d4d80', fog: '#6b6a94', fogDensity: 0.013, hemi: 0.48, ambient: 0.31, sunLight: 0.32, sunColor: '#c98cae', moonLight: 0.45, moonColor: '#9caeee', exposure: 0.95, star: 0.55, moon: 0.65, sun: 0.22, night: 0.75 },
@@ -79,7 +84,7 @@ const KEYFRAMES: RawKeyframe[] = [
   { t: 0.88, skyTop: '#5c6f9c', skyHorizon: '#f0879a', groundLight: '#5c6f9c', fog: '#d1919a', fogDensity: 0.012, hemi: 0.52, ambient: 0.34, sunLight: 0.65, sunColor: '#f0879a', moonLight: 0.22, moonColor: '#a4b2f2', exposure: 0.98, star: 0.25, moon: 0.4, sun: 0.6, night: 0.5 },
   { t: 0.91, skyTop: '#7d90b0', skyHorizon: '#ffab6c', groundLight: '#7d90b0', fog: '#eaab74', fogDensity: 0.011, hemi: 0.56, ambient: 0.36, sunLight: 1.1, sunColor: '#ffab6c', moonLight: 0.08, moonColor: '#aebbff', exposure: 1.0, star: 0.05, moon: 0.15, sun: 1, night: 0.25 },
   { t: 0.94, skyTop: '#7fb0d8', skyHorizon: '#eef0da', groundLight: '#8fb0c8', fog: '#f2d9ab', fogDensity: 0.01, hemi: 0.62, ambient: 0.36, sunLight: 1.5, sunColor: '#ffd9a0', moonLight: 0, moonColor: '#aebbff', exposure: 1.03, star: 0, moon: 0, sun: 1, night: 0.05 },
-  { t: 1.0, skyTop: '#7fb8e6', skyHorizon: '#eef1e2', groundLight: '#8fb8d9', fog: '#f3d9ad', fogDensity: 0.009, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
+  { t: 1.0, skyTop: '#7fb8e6', skyHorizon: '#eef1e2', groundLight: '#8fb8d9', fog: '#eef1e6', fogDensity: 0.0065, hemi: 0.68, ambient: 0.35, sunLight: 1.75, sunColor: '#fff1cf', moonLight: 0, moonColor: '#aebbff', exposure: 1.05, star: 0, moon: 0, sun: 1, night: 0 },
 ];
 
 const colorCache = new Map<string, THREE.Color>();

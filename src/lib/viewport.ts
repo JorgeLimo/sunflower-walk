@@ -36,24 +36,38 @@ export interface SunflowerTierCounts {
   background: number;
 }
 
+export interface VegetationTierCounts {
+  bushes: number;
+  rocks: number;
+  wildflowers: number;
+  grass: number;
+}
+
 export interface TierSettings {
   fov: number;
   cameraDistanceScale: number;
   shadowMapSize: number;
   dpr: [number, number];
   sunflowersPerTile: SunflowerTierCounts;
+  vegetationPerTile: VegetationTierCounts;
   starCount: number;
   enableBloom: boolean;
   enableBirds: boolean;
 }
 
+// `sunflowersPerTile` es por SEGMENTO de camino (32 unidades de largo) y hay
+// 9 segmentos vivos a la vez, así que el desktop sostiene ~2100 plantas. El
+// salto grande está en `background`: es la franja que llega hasta ±100 de
+// ancho y la que hace que el campo siga leyéndose hasta el horizonte en vez
+// de cortarse en una franja de césped vacío a los lados.
 export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
   desktop: {
     fov: 45,
     cameraDistanceScale: 1,
     shadowMapSize: 1024,
     dpr: [1, 1.75],
-    sunflowersPerTile: { foreground: 7, mid: 13, background: 24 },
+    sunflowersPerTile: { foreground: 56, mid: 175, background: 560 },
+    vegetationPerTile: { bushes: 9, rocks: 5, wildflowers: 60, grass: 300 },
     starCount: 2600,
     enableBloom: true,
     enableBirds: true,
@@ -63,7 +77,8 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     cameraDistanceScale: 1.15,
     shadowMapSize: 768,
     dpr: [1, 1.5],
-    sunflowersPerTile: { foreground: 5, mid: 10, background: 16 },
+    sunflowersPerTile: { foreground: 40, mid: 120, background: 380 },
+    vegetationPerTile: { bushes: 6, rocks: 3, wildflowers: 40, grass: 200 },
     starCount: 1800,
     enableBloom: true,
     enableBirds: true,
@@ -73,7 +88,8 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     cameraDistanceScale: 1.4,
     shadowMapSize: 512,
     dpr: [1, 1.4],
-    sunflowersPerTile: { foreground: 3, mid: 6, background: 10 },
+    sunflowersPerTile: { foreground: 20, mid: 55, background: 170 },
+    vegetationPerTile: { bushes: 3, rocks: 2, wildflowers: 24, grass: 130 },
     starCount: 1100,
     enableBloom: false,
     enableBirds: false,

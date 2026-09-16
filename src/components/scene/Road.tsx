@@ -45,6 +45,46 @@ function generateSlotLights(slot: number): LightPost[] {
 
 const SLOT_LIGHTS: LightPost[][] = Array.from({ length: TOTAL_TILES }, (_, slot) => generateSlotLights(slot));
 
+/**
+ * Textura de tierra/desgaste tileable (mismo enfoque que `createMoonTexture`
+ * en `Moon.tsx`: un canvas generado una sola vez): moteado sutil claro y
+ * oscuro sobre blanco neutro, para que `color`/`emissive` (que siguen
+ * fijando el tono real vía multiplicación) ganen variación de superficie en
+ * vez de leerse como un plano de un solo color liso "pegado" sobre el
+ * césped. Se repite varias veces a lo largo del tile para no notarse
+ * estirada.
+ */
+function createRoadTexture(): THREE.CanvasTexture {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  const random = createSeededRandom(4242);
+  for (let i = 0; i < 700; i++) {
+    const x = random() * size;
+    const y = random() * size;
+    const r = 0.5 + random() * 1.6;
+    const dark = random() < 0.55;
+    const alpha = 0.05 + random() * 0.1;
+    ctx.fillStyle = dark ? `rgba(90, 65, 40, ${alpha})` : `rgba(255, 244, 220, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1, 8);
+  return texture;
+}
+
+const roadTexture = createRoadTexture();
+
 // Cuántos faroles reales (con `pointLight` de verdad, no solo emisivo) hay
 // activos a la vez por lado. Se reasignan dinámicamente al farol físico más
 // cercano al personaje en cada frame (ver más abajo) en vez de vivir en un
@@ -192,13 +232,31 @@ export function Road() {
               lejanas) mantiene el camino reconocible de noche en vez de
               volverse un gris uniforme casi negro bajo poca luz ambiente. */}
           <mesh geometry={fillGeometry} receiveShadow>
-            <meshStandardMaterial color={colors.roadFill} emissive={colors.roadFill} emissiveIntensity={0.1} roughness={1} />
+            <meshStandardMaterial
+              map={roadTexture}
+              color={colors.roadFill}
+              emissive={colors.roadFill}
+              emissiveIntensity={0.1}
+              roughness={1}
+            />
           </mesh>
           <mesh geometry={edgeGeometry} position={[-ROAD_WIDTH / 2 + 0.05, 0.001, 0]} receiveShadow>
-            <meshStandardMaterial color={colors.roadEdge} emissive={colors.roadEdge} emissiveIntensity={0.1} roughness={1} />
+            <meshStandardMaterial
+              map={roadTexture}
+              color={colors.roadEdge}
+              emissive={colors.roadEdge}
+              emissiveIntensity={0.1}
+              roughness={1}
+            />
           </mesh>
           <mesh geometry={edgeGeometry} position={[ROAD_WIDTH / 2 - 0.05, 0.001, 0]} receiveShadow>
-            <meshStandardMaterial color={colors.roadEdge} emissive={colors.roadEdge} emissiveIntensity={0.1} roughness={1} />
+            <meshStandardMaterial
+              map={roadTexture}
+              color={colors.roadEdge}
+              emissive={colors.roadEdge}
+              emissiveIntensity={0.1}
+              roughness={1}
+            />
           </mesh>
 
           {/* Faroles: pequeñas esferas emisivas compartiendo un único

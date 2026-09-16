@@ -45,7 +45,7 @@ export function World() {
       <Terrain />
       <Road />
       <Sunflowers counts={settings.sunflowersPerTile} />
-      <Vegetation />
+      <Vegetation counts={settings.vegetationPerTile} />
       <Person />
       <Pug />
       <CameraController tier={tier} />
