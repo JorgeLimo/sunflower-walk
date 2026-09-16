@@ -141,7 +141,9 @@ const ISOLATED_RATIO = 0.26;
  */
 function fieldDensityAt(worldZ: number): number {
   const wave = Math.sin(worldZ * 0.035) * 0.5 + Math.sin(worldZ * 0.011 + 2.1) * 0.5;
-  return 0.45 + 0.55 * (wave * 0.5 + 0.5);
+  // Suelo alto (antes 0.45): se conserva la variación entre tramos más y
+  // menos poblados, pero los flojos ya no se abren como claros grandes.
+  return 0.68 + 0.32 * (wave * 0.5 + 0.5);
 }
 
 /**

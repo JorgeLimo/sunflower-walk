@@ -118,7 +118,7 @@ export function Cat() {
     const gait = gaitPhase.current;
 
     if (rootRef.current) {
-      rootRef.current.position.z = CHARACTER_Z + 0.95 + lagOffset.current;
+      rootRef.current.position.z = CHARACTER_Z + 0.4 + lagOffset.current;
       rootRef.current.position.x = damp(rootRef.current.position.x, CAT_SIDE_OFFSET + sideWander.current, 3, delta);
       rootRef.current.position.y = 0.2 + Math.abs(Math.sin(gait)) * 0.016 * speedFactor;
     }
@@ -184,7 +184,7 @@ export function Cat() {
   const furDarkProps = { color: colors.catFurShadow, emissive: colors.catFurShadow, emissiveIntensity: 0.1, roughness: 0.85 };
 
   return (
-    <group ref={rootRef} position={[CAT_SIDE_OFFSET, 0.2, CHARACTER_Z + 0.95]} rotation={[0, Math.PI, 0]}>
+    <group ref={rootRef} position={[CAT_SIDE_OFFSET, 0.2, CHARACTER_Z + 0.4]} rotation={[0, Math.PI, 0]}>
       <group ref={bodyRef}>
         {/* Tronco alargado y bajo: la proporción felina, lejos de la bola */}
         <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
