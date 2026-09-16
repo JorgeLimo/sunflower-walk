@@ -13,6 +13,7 @@ import { Sunflowers } from './Sunflowers';
 import { Vegetation } from './Vegetation';
 import { Person } from './Person';
 import { Pug } from './Pug';
+import { Cat } from './Cat';
 import { CameraController } from './CameraController';
 import { ScrollPhysics } from '../story/ScrollPhysics';
 import { useViewportTier, TIER_SETTINGS } from '../../lib/viewport';
@@ -48,6 +49,7 @@ export function World() {
       <Vegetation counts={settings.vegetationPerTile} />
       <Person />
       <Pug />
+      <Cat />
       <CameraController tier={tier} />
 
       {settings.enableBloom && (

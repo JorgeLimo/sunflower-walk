@@ -55,6 +55,18 @@ const CASTS_SHADOW_BY_TIER: Record<SunflowerTier, boolean> = {
   background: false,
 };
 
+// El balanceo de viento se recalcula cuadro a cuadro, y eso cuesta CPU por
+// instancia (cuaterniones + composición de matriz + subida del buffer a la
+// GPU). En la franja de fondo hay miles de plantas de pocos píxeles: su
+// balanceo es literalmente invisible, así que sus matrices se escriben solo
+// cuando el segmento se recicla. Es lo que permite multiplicar la cantidad
+// de girasoles sin que el coste por frame se dispare.
+const WIND_BY_TIER: Record<SunflowerTier, boolean> = {
+  foreground: true,
+  mid: true,
+  background: false,
+};
+
 function variantTier(key: SunflowerVariantKey): SunflowerTier {
   return key.split('-')[0] as SunflowerTier;
 }
@@ -139,6 +151,9 @@ export function Sunflowers({ counts }: SunflowersProps) {
         const stemMesh = stemRefs.current[key];
         const headMesh = headRefs.current[key];
         if (!stemMesh || !headMesh) continue;
+        // Sin viento y sin regeneración, las matrices del frame anterior
+        // siguen siendo válidas: no hay nada que recalcular.
+        if (!WIND_BY_TIER[variantTier(key)] && !recycled[slot] && !isFirstFrame) continue;
 
         // Punta REAL del tallo curvado (posición y orientación), publicada por
         // createSunflowerStemGeometry. Usar (0, stemHeight, 0) dejaba la
@@ -208,8 +223,12 @@ export function Sunflowers({ counts }: SunflowersProps) {
     for (const key of SUNFLOWER_VARIANT_KEYS) {
       const stemMesh = stemRefs.current[key];
       const headMesh = headRefs.current[key];
-      if (stemMesh) stemMesh.instanceMatrix.needsUpdate = true;
-      if (headMesh) headMesh.instanceMatrix.needsUpdate = true;
+      // Marcar `needsUpdate` reenvía TODO el buffer de matrices a la GPU, así
+      // que en la franja estática solo se hace cuando de verdad cambió algo.
+      if (WIND_BY_TIER[variantTier(key)] || colorsTouched) {
+        if (stemMesh) stemMesh.instanceMatrix.needsUpdate = true;
+        if (headMesh) headMesh.instanceMatrix.needsUpdate = true;
+      }
       if (colorsTouched) {
         if (stemMesh?.instanceColor) stemMesh.instanceColor.needsUpdate = true;
         if (headMesh?.instanceColor) headMesh.instanceColor.needsUpdate = true;

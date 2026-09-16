@@ -35,6 +35,12 @@ interface ShootingStarState {
   streakLength: number;
   headPeakOpacity: number;
   streakPeakOpacity: number;
+  /** Cuán "de noche" es AHORA mismo, reevaluado cada frame por el padre.
+   * El vuelo dura 2.5-4 segundos REALES, mientras que el ciclo día/noche
+   * avanza con el scroll: haciendo scroll rápido, un cometa lanzado de
+   * noche seguía volando a plena opacidad cuando el cielo ya era de día —
+   * un disco blanco recortado por el horizonte cruzando la escena. */
+  nightGate: number;
 }
 
 function createState(): ShootingStarState {
@@ -47,6 +53,7 @@ function createState(): ShootingStarState {
     headSize: 0.16,
     streakThickness: 0.16,
     streakLength: 7,
+    nightGate: 1,
     headPeakOpacity: 0.75,
     streakPeakOpacity: 0.45,
   };
@@ -164,7 +171,7 @@ function ShootingStar({ state, texture }: { state: ShootingStarState; texture: T
     // tiempo de permanencia a brillo pleno en medio del recorrido.
     const fadeIn = Math.min(state.progress / 0.18, 1);
     const fadeOut = 1 - Math.max((state.progress - 0.7) / 0.3, 0);
-    const envelope = Math.min(fadeIn, fadeOut);
+    const envelope = Math.min(fadeIn, fadeOut) * state.nightGate;
     if (headMaterialRef.current) headMaterialRef.current.opacity = envelope * state.headPeakOpacity;
     if (streakMaterialRef.current) streakMaterialRef.current.opacity = envelope * state.streakPeakOpacity;
   });
@@ -278,10 +285,15 @@ export function ShootingStars() {
       });
     }
 
+    // La visibilidad depende del punto del ciclo, no del rato que lleve
+    // volando: si el amanecer llega a mitad de vuelo, el cometa se apaga
+    // suavemente en vez de seguir cruzando un cielo azul.
+    const nightGate = THREE.MathUtils.smoothstep(skyState.nightFactor, 0.3, 0.55);
     for (const state of pool) {
+      state.nightGate = nightGate;
       if (state.phase === 'active') {
         state.progress += delta / state.duration;
-        if (state.progress >= 1) {
+        if (state.progress >= 1 || nightGate <= 0) {
           state.phase = 'idle';
         }
       }

@@ -50,13 +50,23 @@ export function Sun() {
 
     const angle = getSunArcAngle(cycle);
 
+    // En los extremos del arco `sin(angle)` vale 0, así que el astro queda a
+    // la altura del suelo: su esfera y sus halos aditivos atraviesan el plano
+    // del terreno —que sí escribe profundidad— y se recortan con un borde
+    // recto, produciendo ese "círculo partido por la mitad" que asomaba de
+    // golpe durante la transición. En vez de mover el arco (perderíamos el
+    // astro bajo del amanecer/atardecer), se desvanece mientras está tan bajo
+    // como para que el recorte se note.
+    const height = Math.sin(angle) * ARC_HEIGHT;
+    const horizonFade = THREE.MathUtils.smoothstep(height, 7, 12);
+
     if (groupRef.current) {
-      groupRef.current.position.set(Math.cos(angle) * ARC_WIDTH, Math.sin(angle) * ARC_HEIGHT, CHARACTER_Z - ARC_DEPTH);
+      groupRef.current.position.set(Math.cos(angle) * ARC_WIDTH, height, CHARACTER_Z - ARC_DEPTH);
     }
 
-    if (coreMaterialRef.current) coreMaterialRef.current.opacity = skyState.sunOpacity;
-    if (glowMaterialRef.current) glowMaterialRef.current.opacity = skyState.sunOpacity;
-    if (haloMaterialRef.current) haloMaterialRef.current.opacity = skyState.sunOpacity * 0.5;
+    if (coreMaterialRef.current) coreMaterialRef.current.opacity = skyState.sunOpacity * horizonFade;
+    if (glowMaterialRef.current) glowMaterialRef.current.opacity = skyState.sunOpacity * horizonFade;
+    if (haloMaterialRef.current) haloMaterialRef.current.opacity = skyState.sunOpacity * 0.5 * horizonFade;
   });
 
   return (

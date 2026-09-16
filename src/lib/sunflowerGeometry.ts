@@ -31,6 +31,9 @@ interface DetailConfig {
   petalSegments: { length: number; width: number };
   seedCount: number;
   domeRadialSegments: number;
+  /** Anillos del domo de semillas. En la distancia el domo es un punto: sus
+   * anillos son triángulos que nadie llega a distinguir. */
+  domeRings: number;
   /** Brácteas (sépalos verdes) detrás de la corona de pétalos. Muchas flores
    * del campo se ven de costado o de espaldas: sin ellas, esas plantas
    * mostraban solo la cara oscura del disco. 0 las desactiva (fondo). */
@@ -54,32 +57,35 @@ const DETAIL_CONFIG: Record<SunflowerDetail, DetailConfig> = {
     petalSegments: { length: 4, width: 2 },
     seedCount: 18,
     domeRadialSegments: 12,
+    domeRings: 5,
     bractCount: 9,
   },
   medium: {
     stemSegments: 3,
-    stemRadialSegments: 5,
+    stemRadialSegments: 4,
     leafCount: 3,
     leafSerration: 0.04,
     leafSegments: { length: 3, width: 2 },
-    outerPetalCount: 14,
-    innerPetalCount: 8,
+    outerPetalCount: 11,
+    innerPetalCount: 5,
     petalSegments: { length: 3, width: 2 },
     seedCount: 0,
-    domeRadialSegments: 8,
-    bractCount: 5,
+    domeRadialSegments: 7,
+    domeRings: 2,
+    bractCount: 3,
   },
   low: {
     stemSegments: 2,
-    stemRadialSegments: 4,
-    leafCount: 2,
+    stemRadialSegments: 3,
+    leafCount: 1,
     leafSerration: 0,
     leafSegments: { length: 2, width: 2 },
-    outerPetalCount: 8,
+    outerPetalCount: 7,
     innerPetalCount: 0,
     petalSegments: { length: 3, width: 1 },
     seedCount: 0,
-    domeRadialSegments: 6,
+    domeRadialSegments: 5,
+    domeRings: 2,
     bractCount: 0,
   },
 };
@@ -285,9 +291,8 @@ function addPetalRing(
   }
 }
 
-function addCenterDome(parts: THREE.BufferGeometry[], radius: number, radialSegments: number, seed: number) {
+function addCenterDome(parts: THREE.BufferGeometry[], radius: number, radialSegments: number, ringSteps: number, seed: number) {
   const domeHeight = radius * 0.4;
-  const ringSteps = 5;
   const points: THREE.Vector2[] = [];
   for (let i = 0; i <= ringSteps; i++) {
     const t = i / ringSteps;
@@ -605,8 +610,9 @@ export function createSunflowerHeadGeometry(seed: number, detail: SunflowerDetai
     );
   }
 
-  addCenterDome(parts, domeRadius, cfg.domeRadialSegments, seed);
-  addReceptacle(parts, domeRadius, cfg.domeRadialSegments);
+  addCenterDome(parts, domeRadius, cfg.domeRadialSegments, cfg.domeRings, seed);
+  // El receptáculo solo existe donde el dorso de la flor llega a verse.
+  if (cfg.bractCount > 0) addReceptacle(parts, domeRadius, cfg.domeRadialSegments);
 
   if (cfg.seedCount > 0) {
     addSeeds(parts, cfg.seedCount, domeRadius);

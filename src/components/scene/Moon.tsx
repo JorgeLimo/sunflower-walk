@@ -89,13 +89,23 @@ export function Moon() {
 
     const angle = getMoonArcAngle(cycle);
 
+    // En los extremos del arco `sin(angle)` vale 0, así que el astro queda a
+    // la altura del suelo: su esfera y sus halos aditivos atraviesan el plano
+    // del terreno —que sí escribe profundidad— y se recortan con un borde
+    // recto, produciendo ese "círculo partido por la mitad" que asomaba de
+    // golpe durante la transición. En vez de mover el arco (perderíamos el
+    // astro bajo del amanecer/atardecer), se desvanece mientras está tan bajo
+    // como para que el recorte se note.
+    const height = Math.sin(angle) * ARC_HEIGHT;
+    const horizonFade = THREE.MathUtils.smoothstep(height, 5.5, 9.5);
+
     if (groupRef.current) {
-      groupRef.current.position.set(Math.cos(angle) * ARC_WIDTH, Math.sin(angle) * ARC_HEIGHT, CHARACTER_Z - ARC_DEPTH);
+      groupRef.current.position.set(Math.cos(angle) * ARC_WIDTH, height, CHARACTER_Z - ARC_DEPTH);
     }
 
-    if (coreMaterialRef.current) coreMaterialRef.current.opacity = skyState.moonOpacity;
-    if (glowMaterialRef.current) glowMaterialRef.current.opacity = skyState.moonOpacity;
-    if (haloMaterialRef.current) haloMaterialRef.current.opacity = skyState.moonOpacity * 0.45;
+    if (coreMaterialRef.current) coreMaterialRef.current.opacity = skyState.moonOpacity * horizonFade;
+    if (glowMaterialRef.current) glowMaterialRef.current.opacity = skyState.moonOpacity * horizonFade;
+    if (haloMaterialRef.current) haloMaterialRef.current.opacity = skyState.moonOpacity * 0.45 * horizonFade;
   });
 
   return (

@@ -17,6 +17,11 @@ export const WALK_START_Z = 4;
 /** Offset lateral del Pug respecto a la persona (a su izquierda). */
 export const PUG_SIDE_OFFSET = -0.85;
 
+/** Offset lateral del gato (al otro costado del camino que el Pug, para que
+ * los tres no se solapen en el encuadre). El borde del camino está en
+ * ROAD_WIDTH / 2 = 1.7, así que se mantiene dentro. */
+export const CAT_SIDE_OFFSET = 1.1;
+
 /** Cuánta distancia de mundo (unidades) avanza por pixel de scroll. Bajo a
  * propósito: el paseo debe sentirse lento y cinematográfico, nunca veloz. */
 export const SCROLL_TO_WORLD = 0.012;

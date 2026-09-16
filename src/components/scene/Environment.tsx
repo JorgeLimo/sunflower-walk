@@ -74,15 +74,24 @@ interface MountainSpec {
   rotationY: number;
 }
 
+/** Copias del mismo juego de colinas, desplazadas un periodo completo cada
+ * una. Es lo que hace que el bucle sea de verdad periódico: el grupo se
+ * reancla con `distance % MOUNTAIN_LOOP_LENGTH`, así que al dar la vuelta el
+ * módulo la escena tiene que quedar EXACTAMENTE igual. Antes las colinas se
+ * repartían al azar en ±1.5 periodos, de modo que al saltar el módulo se
+ * veía otra configuración distinta: la silueta del horizonte cambiaba de
+ * golpe, y con scroll rápido se cruzaba ese salto a menudo. */
+const MOUNTAIN_COPIES = [-MOUNTAIN_LOOP_LENGTH, 0, MOUNTAIN_LOOP_LENGTH];
+
 function generateMountains(): MountainSpec[] {
   const random = createSeededRandom(2024);
   const specs: MountainSpec[] = [];
-  const span = MOUNTAIN_LOOP_LENGTH * 1.5;
   for (const side of [-1, 1]) {
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 7; i++) {
       specs.push({
         x: side * randomBetween(random, 70, 130),
-        z: randomBetween(random, -span, span),
+        // Dentro de UN periodo exacto, nunca fuera de él.
+        z: randomBetween(random, 0, MOUNTAIN_LOOP_LENGTH),
         radiusX: randomBetween(random, 20, 40),
         radiusZ: randomBetween(random, 20, 40),
         height: randomBetween(random, 16, 30),
@@ -116,11 +125,12 @@ function Mountains() {
 
   return (
     <group ref={groupRef}>
-      {MOUNTAINS.map((m, i) => (
+      {MOUNTAIN_COPIES.flatMap((offset) =>
+        MOUNTAINS.map((m, i) => (
         <mesh
-          key={i}
+          key={`${offset}-${i}`}
           geometry={geometry}
-          position={[m.x, -m.height * 0.28, m.z]}
+          position={[m.x, -m.height * 0.28, m.z + offset]}
           scale={[m.radiusX, m.height, m.radiusZ]}
           rotation={[0, m.rotationY, 0]}
           receiveShadow
@@ -135,7 +145,8 @@ function Mountains() {
             roughness={1}
           />
         </mesh>
-      ))}
+        )),
+      )}
     </group>
   );
 }

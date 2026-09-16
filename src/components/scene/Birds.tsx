@@ -23,6 +23,10 @@ interface BirdState {
   start: THREE.Vector3;
   end: THREE.Vector3;
   scale: number;
+  /** Cuán "de día" es AHORA, reevaluado cada frame. El vuelo dura 14-26
+   * segundos REALES mientras el ciclo avanza con el scroll: yendo rápido,
+   * un ave lanzada de día seguía cruzando un cielo ya nocturno. */
+  dayGate: number;
 }
 
 function createState(): BirdState {
@@ -36,6 +40,7 @@ function createState(): BirdState {
     start: new THREE.Vector3(),
     end: new THREE.Vector3(),
     scale: 1,
+    dayGate: 1,
   };
 }
 
@@ -55,7 +60,8 @@ function Bird({ state }: { state: BirdState }) {
     g.visible = true;
     g.position.lerpVectors(state.start, state.end, state.progress);
     g.lookAt(state.end.x, g.position.y, state.end.z);
-    g.scale.setScalar(state.scale);
+    // Se encoge hasta desaparecer si la noche la alcanza en pleno vuelo.
+    g.scale.setScalar(state.scale * state.dayGate);
 
     const flap = Math.sin(frameState.clock.elapsedTime * 9) * 0.6;
     if (wingLeftRef.current) wingLeftRef.current.rotation.z = flap;
@@ -92,7 +98,14 @@ export function Birds() {
     const distance = scrollState.current.smoothDistance;
     getSkyState(getCycleProgress(distance), skyState);
 
+    const dayGate = 1 - THREE.MathUtils.smoothstep(skyState.nightFactor, 0.3, 0.55);
     for (const state of pool) {
+      state.dayGate = dayGate;
+      if (state.phase === 'flying' && dayGate <= 0) {
+        state.phase = 'idle';
+        state.timer = randomBetween(random, 3, 8);
+        continue;
+      }
       if (state.phase === 'idle') {
         state.timer -= delta;
         if (state.timer <= 0 && skyState.nightFactor < 0.3) {

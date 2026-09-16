@@ -88,7 +88,7 @@ const BAND_DEFS: Record<SunflowerTier, Band> = {
   },
   background: {
     xMin: ROAD_WIDTH / 2 + 17,
-    xMax: ROAD_WIDTH / 2 + 98,
+    xMax: ROAD_WIDTH / 2 + 112,
     scaleMin: 0.18,
     scaleMax: 0.3,
     heightMin: 0.26,

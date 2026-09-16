@@ -119,15 +119,22 @@ export function Clouds({ count }: CloudsProps) {
   const [tint, setTint] = useState('#ffffff');
   const [dayVisibility, setDayVisibility] = useState(1);
   const acc = useRef(0);
+  const lastVisibility = useRef(1);
   const tintColor = useRef(new THREE.Color());
 
   useFrame((_, delta) => {
     const distance = scrollState.current.smoothDistance;
     getSkyState(getCycleProgress(distance), skyState);
 
+    // El refresco va limitado a ~0.35 s para no re-renderizar de más, pero
+    // con scroll rápido el ciclo entero puede avanzar dentro de ese margen y
+    // las nubes se quedaban visibles en un cielo que ya era de noche. Si el
+    // objetivo se despega, se actualiza de inmediato.
+    const targetVisibility = 1 - skyState.nightFactor;
     acc.current += delta;
-    if (acc.current > 0.35) {
+    if (acc.current > 0.35 || Math.abs(targetVisibility - lastVisibility.current) > 0.07) {
       acc.current = 0;
+      lastVisibility.current = targetVisibility;
       // El material ya no es lit (ver más abajo), así que su brillo no cae
       // solo de noche por sí mismo: hay que oscurecerlo a propósito con
       // `nightFactor`, si no las nubes quedarían blanco-brillante incluso
@@ -139,27 +146,27 @@ export function Clouds({ count }: CloudsProps) {
       // Nubes exclusivamente diurnas: opacidad 1 de día, cae suavemente
       // (heredando el mismo suavizado del ciclo) hasta 0 en la meseta
       // nocturna, y vuelve a subir en el amanecer.
-      setDayVisibility(1 - skyState.nightFactor);
+      setDayVisibility(targetVisibility);
     }
   });
 
-  // Debajo de este umbral la opacidad ya es imperceptible, así que se
-  // desmontan del todo en vez de seguir confiando en que la prop `opacity`
-  // de drei llegue a exactamente 0 (en la práctica queda un remanente
-  // visible). El umbral es lo bastante bajo como para que el desmontaje
-  // ocurra ya con la nube prácticamente invisible: la transición sigue
-  // sintiéndose como un fundido, no como un corte.
-  const clouds = dayVisibility > 0.02;
+  // Debajo de este umbral la opacidad ya es imperceptible y se ocultan.
+  //
+  // Importante: se ocultan con `visible`, NO desmontando el sistema. `Clouds`
+  // de drei reparte sus "pompones" sobre un InstancedMesh cuyas matrices se
+  // calculan en su propio useFrame, así que en el primer frame tras montarse
+  // las instancias siguen sin colocar y aparecen todas en el origen: una
+  // mancha blanca enorme a ras de suelo, encima del personaje. Con `visible`
+  // el sistema sigue vivo y actualizándose, solo deja de dibujarse.
+  const cloudsVisible = dayVisibility > 0.02;
 
   return (
     <group position={[0, 0, CHARACTER_Z]}>
-      {clouds && (
-        <DreiClouds material={THREE.MeshBasicMaterial} limit={count * 20}>
-          {specs.map((spec) => (
-            <DriftingCloud key={spec.id} spec={spec} color={tint} opacityMultiplier={dayVisibility} />
-          ))}
-        </DreiClouds>
-      )}
+      <DreiClouds material={THREE.MeshBasicMaterial} limit={count * 20} visible={cloudsVisible}>
+        {specs.map((spec) => (
+          <DriftingCloud key={spec.id} spec={spec} color={tint} opacityMultiplier={dayVisibility} />
+        ))}
+      </DreiClouds>
     </group>
   );
 }

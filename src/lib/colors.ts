@@ -32,6 +32,15 @@ export const colors = {
   pugBodyShadow: '#c2a274',
   pugDark: '#3a2e28',
 
+  // Gato negro: un carbón cálido en vez de negro puro, porque el negro
+  // absoluto se aplana (no devuelve nada del sol ni de la luz de luna) y la
+  // silueta pierde todo el volumen.
+  catFur: '#2f2b28',
+  catFurShadow: '#201d1b',
+  catFace: '#3c3733',
+  catNose: '#d79a96',
+  catEye: '#c9d94f',
+
   ink: '#4a3f35',
   paper: '#fbf3e3',
 } as const;
