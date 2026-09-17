@@ -10,6 +10,7 @@ import { ShootingStars } from './ShootingStars';
 import { Birds } from './Birds';
 import { Clouds } from './Clouds';
 import { Sunflowers } from './Sunflowers';
+import { Lilies } from './Lilies';
 import { Vegetation } from './Vegetation';
 import { Person } from './Person';
 import { Pug } from './Pug';
@@ -46,6 +47,7 @@ export function World() {
       <Terrain />
       <Road />
       <Sunflowers counts={settings.sunflowersPerTile} />
+      <Lilies counts={settings.liliesPerTile} />
       <Vegetation counts={settings.vegetationPerTile} />
       <Person />
       <Pug />

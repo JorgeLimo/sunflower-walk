@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { LilyTierCounts } from './generateTileLilies';
 
 export type ViewportTier = 'mobile' | 'tablet' | 'desktop';
 
@@ -50,6 +51,7 @@ export interface TierSettings {
   dpr: [number, number];
   sunflowersPerTile: SunflowerTierCounts;
   vegetationPerTile: VegetationTierCounts;
+  liliesPerTile: LilyTierCounts;
   starCount: number;
   enableBloom: boolean;
   enableBirds: boolean;
@@ -66,8 +68,10 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     cameraDistanceScale: 1,
     shadowMapSize: 1024,
     dpr: [1, 1.75],
-    sunflowersPerTile: { foreground: 240, mid: 1050, background: 3100 },
+    sunflowersPerTile: { foreground: 264, mid: 1260, background: 3400 },
     vegetationPerTile: { bushes: 9, rocks: 5, wildflowers: 60, grass: 300 },
+    // Complementarios, nunca protagonistas: ~5% del total de girasoles.
+    liliesPerTile: { near: 60, far: 170 },
     starCount: 2600,
     enableBloom: true,
     enableBirds: true,
@@ -77,8 +81,9 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     cameraDistanceScale: 1.15,
     shadowMapSize: 768,
     dpr: [1, 1.5],
-    sunflowersPerTile: { foreground: 168, mid: 730, background: 2150 },
+    sunflowersPerTile: { foreground: 185, mid: 875, background: 2350 },
     vegetationPerTile: { bushes: 6, rocks: 3, wildflowers: 40, grass: 200 },
+    liliesPerTile: { near: 42, far: 120 },
     starCount: 1800,
     enableBloom: true,
     enableBirds: true,
@@ -88,8 +93,9 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     cameraDistanceScale: 1.4,
     shadowMapSize: 512,
     dpr: [1, 1.4],
-    sunflowersPerTile: { foreground: 76, mid: 300, background: 900 },
+    sunflowersPerTile: { foreground: 84, mid: 360, background: 990 },
     vegetationPerTile: { bushes: 3, rocks: 2, wildflowers: 24, grass: 130 },
+    liliesPerTile: { near: 18, far: 50 },
     starCount: 1100,
     enableBloom: false,
     enableBirds: false,
