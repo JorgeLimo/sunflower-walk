@@ -72,6 +72,7 @@ interface MountainSpec {
   radiusZ: number;
   height: number;
   rotationY: number;
+  color: THREE.Color;
 }
 
 /** Copias del mismo juego de colinas, desplazadas un periodo completo cada
@@ -83,7 +84,16 @@ interface MountainSpec {
  * golpe, y con scroll rápido se cruzaba ese salto a menudo. */
 const MOUNTAIN_COPIES = [-MOUNTAIN_LOOP_LENGTH, 0, MOUNTAIN_LOOP_LENGTH];
 
-function generateMountains(): MountainSpec[] {
+/** Tono base más un jitter de matiz/luminosidad por colina (antes todas
+ * compartían exactamente el mismo `colors.mountainFar`): un puñado de
+ * formas idénticas en color es lo que más delataba "una silueta pegada
+ * detrás del campo" en vez de una cordillera real, donde cada loma tiene su
+ * propia vegetación/roca y por lo tanto su propio tono. */
+function jitterMountainColor(random: () => number, base: string, hueJitter: number, lightJitter: number): THREE.Color {
+  return new THREE.Color(base).offsetHSL((random() - 0.5) * hueJitter, 0, (random() - 0.5) * lightJitter);
+}
+
+function generateMountains(baseColor: string): MountainSpec[] {
   const random = createSeededRandom(2024);
   const specs: MountainSpec[] = [];
   for (const side of [-1, 1]) {
@@ -96,20 +106,76 @@ function generateMountains(): MountainSpec[] {
         radiusZ: randomBetween(random, 20, 40),
         height: randomBetween(random, 16, 30),
         rotationY: random() * Math.PI,
+        color: jitterMountainColor(random, baseColor, 0.035, 0.05),
       });
     }
   }
   return specs;
 }
 
-const MOUNTAINS = generateMountains();
+/** Segunda cordillera, más atrás y más pálida: sin esto, todas las colinas
+ * vivían en el mismo plano de profundidad y el fondo se sentía como una
+ * sola pieza recortada. Formas más grandes y menos numerosas, coloreadas ya
+ * medio fundidas hacia el horizonte — la variación real de luz del cielo
+ * (día/atardecer/noche) la sigue aportando la iluminación existente, esto
+ * solo fija un punto de partida más "distante" para esa mezcla. */
+function generateFarMountains(): MountainSpec[] {
+  const random = createSeededRandom(4077);
+  const hazeBase = new THREE.Color(colors.mountainFar).lerp(new THREE.Color(colors.skyHorizon), 0.4);
+  const specs: MountainSpec[] = [];
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 5; i++) {
+      specs.push({
+        x: side * randomBetween(random, 135, 195),
+        z: randomBetween(random, 0, MOUNTAIN_LOOP_LENGTH),
+        radiusX: randomBetween(random, 30, 55),
+        radiusZ: randomBetween(random, 30, 55),
+        height: randomBetween(random, 20, 34),
+        rotationY: random() * Math.PI,
+        color: hazeBase.clone().offsetHSL((random() - 0.5) * 0.02, 0, (random() - 0.5) * 0.04),
+      });
+    }
+  }
+  return specs;
+}
+
+const MOUNTAINS = generateMountains(colors.mountainFar);
+const FAR_MOUNTAINS = generateFarMountains();
+
+function MountainLayer({ specs, geometry, emissiveIntensity }: { specs: MountainSpec[]; geometry: THREE.BufferGeometry; emissiveIntensity: number }) {
+  return (
+    <>
+      {MOUNTAIN_COPIES.flatMap((offset) =>
+        specs.map((m, i) => (
+          <mesh
+            key={`${offset}-${i}`}
+            geometry={geometry}
+            position={[m.x, -m.height * 0.28, m.z + offset]}
+            scale={[m.radiusX, m.height, m.radiusZ]}
+            rotation={[0, m.rotationY, 0]}
+            receiveShadow
+          >
+            {/* Un poco de emisivo constante para que la silueta nunca se
+                funda por completo con el cielo, sin importar el ángulo de
+                la luz — sin esto, de noche podían quedar casi invisibles. */}
+            <meshStandardMaterial color={m.color} emissive={m.color} emissiveIntensity={emissiveIntensity} roughness={1} />
+          </mesh>
+        )),
+      )}
+    </>
+  );
+}
 
 /**
- * Colinas bajas y redondeadas (nada de picos geométricos afilados). El
- * grupo entero se re-ancla usando el RESTO de la distancia recorrida
- * módulo MOUNTAIN_LOOP_LENGTH — nunca la distancia cruda — así que su
- * posición se mantiene siempre acotada cerca del personaje sin importar
- * cuánto se haya scrolleado, y jamás cambian de escala ni de forma.
+ * Colinas bajas y redondeadas (nada de picos geométricos afilados), en DOS
+ * capas de profundidad — una cordillera cercana con más presencia y una
+ * segunda más grande, más lejana y más pálida detrás — para que el fondo se
+ * lea como un paisaje con profundidad real y no como una silueta recortada
+ * pegada detrás del campo. El grupo entero se re-ancla usando el RESTO de
+ * la distancia recorrida módulo MOUNTAIN_LOOP_LENGTH — nunca la distancia
+ * cruda — así que su posición se mantiene siempre acotada cerca del
+ * personaje sin importar cuánto se haya scrolleado, y jamás cambian de
+ * escala ni de forma.
  */
 function Mountains() {
   const scrollState = useScrollState();
@@ -125,28 +191,8 @@ function Mountains() {
 
   return (
     <group ref={groupRef}>
-      {MOUNTAIN_COPIES.flatMap((offset) =>
-        MOUNTAINS.map((m, i) => (
-        <mesh
-          key={`${offset}-${i}`}
-          geometry={geometry}
-          position={[m.x, -m.height * 0.28, m.z + offset]}
-          scale={[m.radiusX, m.height, m.radiusZ]}
-          rotation={[0, m.rotationY, 0]}
-          receiveShadow
-        >
-          {/* Un poco de emisivo constante para que la silueta nunca se
-              funda por completo con el cielo, sin importar el ángulo de
-              la luz — sin esto, de noche podían quedar casi invisibles. */}
-          <meshStandardMaterial
-            color={colors.mountainFar}
-            emissive={colors.mountainFar}
-            emissiveIntensity={0.12}
-            roughness={1}
-          />
-        </mesh>
-        )),
-      )}
+      <MountainLayer specs={FAR_MOUNTAINS} geometry={geometry} emissiveIntensity={0.16} />
+      <MountainLayer specs={MOUNTAINS} geometry={geometry} emissiveIntensity={0.12} />
     </group>
   );
 }

@@ -21,6 +21,15 @@ export const colors = {
   flowerCenter: '#6b4a2b',
   flowerCenterDark: '#3a2413',
 
+  // Tulipanes: acento secundario, nunca protagonista — de ahí el rosa
+  // deliberadamente lavado (no un rosa saturado que compita con el amarillo
+  // del girasol) y el blanco con un dejo cálido (blanco puro se ve plano
+  // bajo la luz cálida del sol, mismo motivo que el pétalo del lirio).
+  tulipPink: '#f3cdd9',
+  tulipPinkShadow: '#e3aebe',
+  tulipWhite: '#faf4e6',
+  tulipWhiteShadow: '#e8dfc9',
+
   personSkin: '#f3caa1',
   personHair: '#4a3226',
   personOutfit: '#d97b5f',

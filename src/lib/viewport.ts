@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LilyTierCounts } from './generateTileLilies';
+import type { TulipTierCounts } from './generateTileTulips';
 
 export type ViewportTier = 'mobile' | 'tablet' | 'desktop';
 
@@ -42,6 +43,13 @@ export interface VegetationTierCounts {
   rocks: number;
   wildflowers: number;
   grass: number;
+  /** Matas de hierba más altas que `grass` — segunda capa de altura para que
+   * el césped no se sienta todo del mismo tamaño. */
+  tallGrass: number;
+  /** Hojitas de suelo (tréboles/matas bajas) dispersas entre los tallos: la
+   * capa que "arraiga" visualmente a los girasoles al terreno, en vez de
+   * dejarlos apoyados sobre césped liso. */
+  groundLeaves: number;
 }
 
 export interface TierSettings {
@@ -52,6 +60,7 @@ export interface TierSettings {
   sunflowersPerTile: SunflowerTierCounts;
   vegetationPerTile: VegetationTierCounts;
   liliesPerTile: LilyTierCounts;
+  tulipsPerTile: TulipTierCounts;
   starCount: number;
   enableBloom: boolean;
   enableBirds: boolean;
@@ -69,9 +78,10 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     shadowMapSize: 1024,
     dpr: [1, 1.75],
     sunflowersPerTile: { foreground: 264, mid: 1260, background: 3400 },
-    vegetationPerTile: { bushes: 9, rocks: 5, wildflowers: 60, grass: 300 },
+    vegetationPerTile: { bushes: 9, rocks: 5, wildflowers: 60, grass: 340, tallGrass: 110, groundLeaves: 260 },
     // Complementarios, nunca protagonistas: ~5% del total de girasoles.
     liliesPerTile: { near: 60, far: 170 },
+    tulipsPerTile: { near: 200, far: 560 },
     starCount: 2600,
     enableBloom: true,
     enableBirds: true,
@@ -82,8 +92,9 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     shadowMapSize: 768,
     dpr: [1, 1.5],
     sunflowersPerTile: { foreground: 185, mid: 875, background: 2350 },
-    vegetationPerTile: { bushes: 6, rocks: 3, wildflowers: 40, grass: 200 },
+    vegetationPerTile: { bushes: 6, rocks: 3, wildflowers: 40, grass: 230, tallGrass: 75, groundLeaves: 175 },
     liliesPerTile: { near: 42, far: 120 },
+    tulipsPerTile: { near: 136, far: 380 },
     starCount: 1800,
     enableBloom: true,
     enableBirds: true,
@@ -94,8 +105,9 @@ export const TIER_SETTINGS: Record<ViewportTier, TierSettings> = {
     shadowMapSize: 512,
     dpr: [1, 1.4],
     sunflowersPerTile: { foreground: 84, mid: 360, background: 990 },
-    vegetationPerTile: { bushes: 3, rocks: 2, wildflowers: 24, grass: 130 },
+    vegetationPerTile: { bushes: 3, rocks: 2, wildflowers: 24, grass: 150, tallGrass: 34, groundLeaves: 80 },
     liliesPerTile: { near: 18, far: 50 },
+    tulipsPerTile: { near: 60, far: 150 },
     starCount: 1100,
     enableBloom: false,
     enableBirds: false,
