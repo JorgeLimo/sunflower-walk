@@ -69,13 +69,16 @@ interface Band {
 // densidad conservando césped visible entre medias.
 const BAND_DEFS: Record<SunflowerTier, Band> = {
   foreground: {
-    xMin: ROAD_WIDTH / 2 + 0.3,
-    xMax: ROAD_WIDTH / 2 + 4.6,
+    // Casi pegada al borde del camino: era la franja donde más se notaba el
+    // césped pelado, porque la banda arrancaba a 0.3 del borde y en primer
+    // plano la perspectiva ensancha mucho ese hueco.
+    xMin: ROAD_WIDTH / 2 + 0.12,
+    xMax: ROAD_WIDTH / 2 + 5.2,
     scaleMin: 0.3,
     scaleMax: 0.45,
     heightMin: 0.4,
     heightMax: 0.54,
-    minDist: 0.62,
+    minDist: 0.54,
   },
   mid: {
     xMin: ROAD_WIDTH / 2 + 2.6,
@@ -84,7 +87,7 @@ const BAND_DEFS: Record<SunflowerTier, Band> = {
     scaleMax: 0.38,
     heightMin: 0.34,
     heightMax: 0.48,
-    minDist: 0.48,
+    minDist: 0.41,
   },
   background: {
     xMin: ROAD_WIDTH / 2 + 17,
@@ -93,7 +96,7 @@ const BAND_DEFS: Record<SunflowerTier, Band> = {
     scaleMax: 0.3,
     heightMin: 0.26,
     heightMax: 0.4,
-    minDist: 0.34,
+    minDist: 0.29,
   },
 };
 
@@ -143,7 +146,7 @@ function fieldDensityAt(worldZ: number): number {
   const wave = Math.sin(worldZ * 0.035) * 0.5 + Math.sin(worldZ * 0.011 + 2.1) * 0.5;
   // Suelo alto (antes 0.45): se conserva la variación entre tramos más y
   // menos poblados, pero los flojos ya no se abren como claros grandes.
-  return 0.68 + 0.32 * (wave * 0.5 + 0.5);
+  return 0.78 + 0.22 * (wave * 0.5 + 0.5);
 }
 
 /**

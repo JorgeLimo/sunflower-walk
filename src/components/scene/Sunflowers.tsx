@@ -55,15 +55,24 @@ const CASTS_SHADOW_BY_TIER: Record<SunflowerTier, boolean> = {
   background: false,
 };
 
-// El balanceo de viento se recalcula cuadro a cuadro, y eso cuesta CPU por
-// instancia (cuaterniones + composición de matriz + subida del buffer a la
-// GPU). En la franja de fondo hay miles de plantas de pocos píxeles: su
-// balanceo es literalmente invisible, así que sus matrices se escriben solo
-// cuando el segmento se recicla. Es lo que permite multiplicar la cantidad
-// de girasoles sin que el coste por frame se dispare.
+// El balanceo de viento (cuaterniones + composición de matriz por instancia)
+// solo se recalcula cuadro a cuadro para la franja de primer plano, que es la
+// que bordea el camino y donde el vaivén se aprecia de verdad: a partir de
+// ~4 unidades de distancia la amplitud (0.07 rad sobre una planta de medio
+// metro) queda por debajo del píxel. Las demás franjas solo recalculan sus
+// matrices LOCALES cuando el segmento se recicla.
+//
+// Importante: esto NO decide si la planta avanza con el scroll — eso lo hace
+// el `<group>` de cada slot (ver más abajo), que se mueve TODOS los cuadros
+// sin importar el nivel de viento. Antes esta bandera controlaba también la
+// posición, y las franjas sin viento quedaban con su `tileWorldZ` congelado
+// en el valor del último reciclado: entre un reciclado y el siguiente no se
+// movían nada, y al reciclar saltaban de golpe a la posición correcta — un
+// tirón claramente perceptible, más frecuente cuanto más rápido se scrollea
+// (el reciclado depende de la distancia recorrida, no del tiempo).
 const WIND_BY_TIER: Record<SunflowerTier, boolean> = {
   foreground: true,
-  mid: true,
+  mid: false,
   background: false,
 };
 
@@ -77,10 +86,20 @@ function variantMaturity(key: SunflowerVariantKey) {
 
 /**
  * Campo de girasoles infinito. Cada variante (franja de profundidad x
- * madurez) es en realidad DOS InstancedMesh: tallo+hojas y cabeza+pétalos.
- * Separarlos permite que el viento doble el tallo y que la cabeza seiga ese
- * movimiento con un balanceo propio, en vez de rotar la planta entera como
- * un bloque rígido.
+ * madurez x estilo) es en realidad DOS InstancedMesh por SLOT de tile
+ * (tallo+hojas, y cabeza+pétalos): separarlos permite que el viento doble el
+ * tallo y que la cabeza siga ese movimiento con un balanceo propio, en vez
+ * de rotar la planta entera como un bloque rígido.
+ *
+ * Cada slot vive dentro de su propio `<group>` (mismo patrón que Road.tsx),
+ * cuya posición Z seguimos actualizando cuadro a cuadro sin importar el
+ * nivel de detalle — es una escritura escalar por slot, no por instancia, así
+ * que es esencialmente gratis. Las coordenadas de cada `FlowerLocal` son
+ * LOCALES al tile (nunca se les suma `tileWorldZ`), así que el avance suave
+ * por scroll queda totalmente desacoplado de cuán caro sea recalcular la
+ * matriz de cada instancia — lo segundo solo hace falta al reciclar el slot
+ * (nueva disposición de plantas) o, en primer plano, para el balanceo del
+ * viento.
  */
 export function Sunflowers({ counts }: SunflowersProps) {
   const variantCounts = useMemo(() => computeVariantCounts(counts), [counts]);
@@ -100,8 +119,9 @@ export function Sunflowers({ counts }: SunflowersProps) {
     return map;
   }, []);
 
-  const stemRefs = useRef<Partial<Record<SunflowerVariantKey, THREE.InstancedMesh>>>({});
-  const headRefs = useRef<Partial<Record<SunflowerVariantKey, THREE.InstancedMesh>>>({});
+  const groupRefs = useRef<(THREE.Group | null)[]>([]);
+  const stemRefs = useRef<Partial<Record<SunflowerVariantKey, (THREE.InstancedMesh | null)[]>>>({});
+  const headRefs = useRef<Partial<Record<SunflowerVariantKey, (THREE.InstancedMesh | null)[]>>>({});
 
   const scrollState = useScrollState();
   const indices = useRef<number[]>(createInitialTileIndices()).current;
@@ -140,19 +160,27 @@ export function Sunflowers({ counts }: SunflowersProps) {
     firstFrame.current = false;
 
     for (let slot = 0; slot < TOTAL_TILES; slot++) {
+      // Avance continuo del segmento: SIEMPRE, sin importar el nivel de
+      // viento/detalle de sus variantes — es una escritura escalar, no toca
+      // ninguna instancia, así que no hay optimización que valga la pena
+      // aplicarle. Esto es lo que mantiene a las plantas del fondo avanzando
+      // en el mismo tren que las de primer plano en vez de quedarse quietas
+      // entre reciclados.
+      const group = groupRefs.current[slot];
+      if (group) group.position.z = tileRenderZ(indices[slot], distance);
+
       if (recycled[slot]) {
         tileLocals[slot] = generateTileFlowers(indices[slot], counts);
       }
       const colorsChanged = recycled[slot] || isFirstFrame;
 
-      const tileWorldZ = tileRenderZ(indices[slot], distance);
-
       for (const key of SUNFLOWER_VARIANT_KEYS) {
-        const stemMesh = stemRefs.current[key];
-        const headMesh = headRefs.current[key];
+        const stemMesh = stemRefs.current[key]?.[slot];
+        const headMesh = headRefs.current[key]?.[slot];
         if (!stemMesh || !headMesh) continue;
-        // Sin viento y sin regeneración, las matrices del frame anterior
-        // siguen siendo válidas: no hay nada que recalcular.
+        // Sin viento y sin regeneración, las matrices LOCALES del frame
+        // anterior siguen siendo válidas tal cual (la posición del conjunto
+        // ya la mueve el `<group>` de arriba): no hay nada que recalcular.
         if (!WIND_BY_TIER[variantTier(key)] && !recycled[slot] && !isFirstFrame) continue;
 
         // Punta REAL del tallo curvado (posición y orientación), publicada por
@@ -165,7 +193,6 @@ export function Sunflowers({ counts }: SunflowersProps) {
         const perSlot = variantCounts[key];
 
         for (let i = 0; i < perSlot; i++) {
-          const instanceIndex = slot * perSlot + i;
           const f = locals[i];
           // Puede haber menos plantas que huecos: si no se encontró sitio
           // respetando la separación mínima, la instancia sobrante se colapsa
@@ -175,8 +202,8 @@ export function Sunflowers({ counts }: SunflowersProps) {
             dummy.quaternion.identity();
             dummy.scale.setScalar(0);
             dummy.updateMatrix();
-            stemMesh.setMatrixAt(instanceIndex, dummy.matrix);
-            headMesh.setMatrixAt(instanceIndex, dummy.matrix);
+            stemMesh.setMatrixAt(i, dummy.matrix);
+            headMesh.setMatrixAt(i, dummy.matrix);
             continue;
           }
 
@@ -187,11 +214,13 @@ export function Sunflowers({ counts }: SunflowersProps) {
           stemWindQuat.setFromAxisAngle(stemWindAxis, stemWind);
           finalStemQuat.copy(stemWindQuat).multiply(baseQuat);
 
-          dummy.position.set(f.x, 0, tileWorldZ + f.z);
+          // Coordenadas LOCALES al tile: nunca se les suma `tileWorldZ` aquí
+          // — el avance por scroll lo aporta el `<group>` contenedor.
+          dummy.position.set(f.x, 0, f.z);
           dummy.quaternion.copy(finalStemQuat);
           dummy.scale.set(f.scaleXZ, f.scaleY, f.scaleXZ);
           dummy.updateMatrix();
-          stemMesh.setMatrixAt(instanceIndex, dummy.matrix);
+          stemMesh.setMatrixAt(i, dummy.matrix);
 
           // La punta se escala por eje igual que el tallo (scaleXZ, scaleY,
           // scaleXZ) ANTES de rotar con la orientación de la planta.
@@ -203,74 +232,79 @@ export function Sunflowers({ counts }: SunflowersProps) {
           // tallo, así que "cabecea" siguiéndolo en vez de quedar recta.
           finalHeadQuat.copy(headWindQuat).multiply(finalStemQuat).multiply(tipQuat);
 
-          dummy.position.set(f.x + topOffset.x, topOffset.y, tileWorldZ + f.z + topOffset.z);
+          dummy.position.set(f.x + topOffset.x, topOffset.y, f.z + topOffset.z);
           dummy.quaternion.copy(finalHeadQuat);
           dummy.scale.set(f.scaleXZ, f.scaleXZ, f.scaleXZ);
           dummy.updateMatrix();
-          headMesh.setMatrixAt(instanceIndex, dummy.matrix);
+          headMesh.setMatrixAt(i, dummy.matrix);
 
           if (colorsChanged) {
             scratchColor.copy(headTintA).lerp(headTintB, f.tint);
-            headMesh.setColorAt(instanceIndex, scratchColor);
+            headMesh.setColorAt(i, scratchColor);
             scratchColor.copy(stemTintA).lerp(stemTintB, f.tint);
-            stemMesh.setColorAt(instanceIndex, scratchColor);
+            stemMesh.setColorAt(i, scratchColor);
           }
         }
-      }
-    }
 
-    const colorsTouched = isFirstFrame || recycled.some(Boolean);
-    for (const key of SUNFLOWER_VARIANT_KEYS) {
-      const stemMesh = stemRefs.current[key];
-      const headMesh = headRefs.current[key];
-      // Marcar `needsUpdate` reenvía TODO el buffer de matrices a la GPU, así
-      // que en la franja estática solo se hace cuando de verdad cambió algo.
-      if (WIND_BY_TIER[variantTier(key)] || colorsTouched) {
-        if (stemMesh) stemMesh.instanceMatrix.needsUpdate = true;
-        if (headMesh) headMesh.instanceMatrix.needsUpdate = true;
-      }
-      if (colorsTouched) {
-        if (stemMesh?.instanceColor) stemMesh.instanceColor.needsUpdate = true;
-        if (headMesh?.instanceColor) headMesh.instanceColor.needsUpdate = true;
+        // Marcar `needsUpdate` reenvía el buffer de matrices de ESTE slot a
+        // la GPU, así que solo se hace cuando de verdad se reescribió algo.
+        if (WIND_BY_TIER[variantTier(key)] || recycled[slot] || isFirstFrame) {
+          stemMesh.instanceMatrix.needsUpdate = true;
+          headMesh.instanceMatrix.needsUpdate = true;
+        }
+        if (colorsChanged) {
+          if (stemMesh.instanceColor) stemMesh.instanceColor.needsUpdate = true;
+          if (headMesh.instanceColor) headMesh.instanceColor.needsUpdate = true;
+        }
       }
     }
   });
 
   return (
     <>
-      {SUNFLOWER_VARIANT_KEYS.filter((key) => variantCounts[key] > 0).map((key) => {
-        const total = variantCounts[key] * TOTAL_TILES;
-        const shadows = CASTS_SHADOW_BY_TIER[variantTier(key)];
-        return (
-          <group key={key}>
-            <instancedMesh
-              ref={(el) => {
-                if (el) stemRefs.current[key] = el;
-              }}
-              args={[geometries[key].stem, undefined, total]}
-              castShadow={shadows}
-              receiveShadow={shadows}
-              frustumCulled={false}
-            >
-              {/* Doble cara obligatoria: las hojas son tiras de un solo plano,
-                  así que sin esto las que quedaban de espaldas a la luz o a la
-                  cámara desaparecían y la planta se veía medio pelada. */}
-              <meshStandardMaterial vertexColors roughness={0.85} side={THREE.DoubleSide} />
-            </instancedMesh>
-            <instancedMesh
-              ref={(el) => {
-                if (el) headRefs.current[key] = el;
-              }}
-              args={[geometries[key].head, undefined, total]}
-              castShadow={shadows}
-              receiveShadow={shadows}
-              frustumCulled={false}
-            >
-              <meshStandardMaterial vertexColors roughness={0.8} side={THREE.DoubleSide} />
-            </instancedMesh>
-          </group>
-        );
-      })}
+      {Array.from({ length: TOTAL_TILES }).map((_, slot) => (
+        <group
+          key={slot}
+          ref={(el) => {
+            groupRefs.current[slot] = el;
+          }}
+          position={[0, 0, tileRenderZ(indices[slot], 0)]}
+        >
+          {SUNFLOWER_VARIANT_KEYS.filter((key) => variantCounts[key] > 0).map((key) => {
+            const shadows = CASTS_SHADOW_BY_TIER[variantTier(key)];
+            return (
+              <group key={key}>
+                <instancedMesh
+                  ref={(el) => {
+                    (stemRefs.current[key] ??= [])[slot] = el;
+                  }}
+                  args={[geometries[key].stem, undefined, variantCounts[key]]}
+                  castShadow={shadows}
+                  receiveShadow={shadows}
+                  frustumCulled={false}
+                >
+                  {/* Doble cara obligatoria: las hojas son tiras de un solo
+                      plano, así que sin esto las que quedaban de espaldas a
+                      la luz o a la cámara desaparecían y la planta se veía
+                      medio pelada. */}
+                  <meshStandardMaterial vertexColors roughness={0.85} side={THREE.DoubleSide} />
+                </instancedMesh>
+                <instancedMesh
+                  ref={(el) => {
+                    (headRefs.current[key] ??= [])[slot] = el;
+                  }}
+                  args={[geometries[key].head, undefined, variantCounts[key]]}
+                  castShadow={shadows}
+                  receiveShadow={shadows}
+                  frustumCulled={false}
+                >
+                  <meshStandardMaterial vertexColors roughness={0.8} side={THREE.DoubleSide} />
+                </instancedMesh>
+              </group>
+            );
+          })}
+        </group>
+      ))}
     </>
   );
 }
