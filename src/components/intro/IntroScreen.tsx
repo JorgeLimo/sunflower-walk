@@ -29,7 +29,10 @@ export function IntroScreen({ onEnter }: IntroScreenProps) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.9, ease: [0.45, 0, 0.55, 1] }}
     >
-      <p className={styles.title}>Un camino entre girasoles</p>
+      <div className={styles.heading}>
+        <p className={styles.title}>Haz clic en «Entrar»</p>
+        <p className={styles.title}>Y luego haz scroll.</p>
+      </div>
       <button type="button" className={styles.enterButton} onClick={handleEnter}>
         Entrar
       </button>
