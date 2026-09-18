@@ -17,6 +17,7 @@ import {
 import { TILE_LENGTH, TOTAL_TILES } from '../../lib/constants';
 import { createInitialTileIndices, recycleTileIndices, tileRenderZ } from '../../lib/tileSystem';
 import { useScrollState } from '../story/scrollContext';
+import { windGustFactor } from '../../lib/wind';
 import type { SunflowerTierCounts } from '../../lib/viewport';
 
 interface SunflowersProps {
@@ -167,7 +168,8 @@ export function Sunflowers({ counts }: SunflowersProps) {
       // en el mismo tren que las de primer plano en vez de quedarse quietas
       // entre reciclados.
       const group = groupRefs.current[slot];
-      if (group) group.position.z = tileRenderZ(indices[slot], distance);
+      const groupZ = tileRenderZ(indices[slot], distance);
+      if (group) group.position.z = groupZ;
 
       if (recycled[slot]) {
         tileLocals[slot] = generateTileFlowers(indices[slot], counts);
@@ -210,7 +212,13 @@ export function Sunflowers({ counts }: SunflowersProps) {
           baseEuler.set(f.tiltX, f.rotationY, f.tiltZ);
           baseQuat.setFromEuler(baseEuler);
 
-          const stemWind = Math.sin(t * f.speed + f.phase) * 0.07;
+          // Brisa que recorre el campo: modula la amplitud del balanceo de
+          // esta planta según su posición real de mundo — nunca reemplaza
+          // el vaivén individual (fase/velocidad propias), solo lo hace más
+          // notorio cuando la ráfaga "pasa" por su zona.
+          const gust = windGustFactor(f.x, groupZ + f.z, t);
+
+          const stemWind = Math.sin(t * f.speed + f.phase) * 0.07 * gust;
           stemWindQuat.setFromAxisAngle(stemWindAxis, stemWind);
           finalStemQuat.copy(stemWindQuat).multiply(baseQuat);
 
@@ -226,7 +234,7 @@ export function Sunflowers({ counts }: SunflowersProps) {
           // scaleXZ) ANTES de rotar con la orientación de la planta.
           topOffset.set(tip.x * f.scaleXZ, tip.y * f.scaleY, tip.z * f.scaleXZ).applyQuaternion(finalStemQuat);
 
-          const headWind = Math.sin(t * f.headSpeed + f.headPhase) * 0.05;
+          const headWind = Math.sin(t * f.headSpeed + f.headPhase) * 0.05 * gust;
           headWindQuat.setFromAxisAngle(headWindAxis, headWind);
           // La cabeza hereda además la inclinación acumulada de la curva del
           // tallo, así que "cabecea" siguiéndolo en vez de quedar recta.

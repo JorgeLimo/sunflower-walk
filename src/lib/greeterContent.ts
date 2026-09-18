@@ -12,7 +12,7 @@ export const GREETER_PHRASES: string[] = [
   'Todos estan orgullosos de ti',
   'Has avanzado mucho',
   'Eres una gran persona',
-  'Felicidades por todo',
+  'Felicidades por todo tu esfuerzo',
   'Siempre confía en ti',
   'Tú puedes hacerlo',
   'Cada paso cuenta',

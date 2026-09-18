@@ -14,6 +14,7 @@ import {
 import { TILE_LENGTH, TOTAL_TILES } from '../../lib/constants';
 import { createInitialTileIndices, recycleTileIndices, tileRenderZ } from '../../lib/tileSystem';
 import { useScrollState } from '../story/scrollContext';
+import { windGustFactor } from '../../lib/wind';
 
 interface LiliesProps {
   counts: LilyTierCounts;
@@ -97,7 +98,8 @@ export function Lilies({ counts }: LiliesProps) {
       // Avance continuo, siempre, sin importar el nivel de viento de sus
       // variantes — escritura escalar barata (ver Sunflowers.tsx).
       const group = groupRefs.current[slot];
-      if (group) group.position.z = tileRenderZ(indices[slot], distance);
+      const groupZ = tileRenderZ(indices[slot], distance);
+      if (group) group.position.z = groupZ;
 
       if (recycled[slot]) {
         tileLocals[slot] = generateTileLilies(indices[slot], counts);
@@ -126,7 +128,8 @@ export function Lilies({ counts }: LiliesProps) {
           baseEuler.set(f.tiltX, f.rotationY, f.tiltZ);
           baseQuat.setFromEuler(baseEuler);
 
-          const sway = Math.sin(t * f.speed + f.phase) * 0.09;
+          const gust = windGustFactor(f.x, groupZ + f.z, t);
+          const sway = Math.sin(t * f.speed + f.phase) * 0.09 * gust;
           windQuat.setFromAxisAngle(windAxis, sway);
           finalQuat.copy(windQuat).multiply(baseQuat);
 

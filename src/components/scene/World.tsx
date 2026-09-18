@@ -13,6 +13,8 @@ import { Sunflowers } from './Sunflowers';
 import { Lilies } from './Lilies';
 import { Tulips } from './Tulips';
 import { Vegetation } from './Vegetation';
+import { Butterflies } from './Butterflies';
+import { Fireflies } from './Fireflies';
 import { Greeters } from './Greeters';
 import { Person } from './Person';
 import { Pug } from './Pug';
@@ -52,6 +54,8 @@ export function World() {
       <Lilies counts={settings.liliesPerTile} />
       <Tulips counts={settings.tulipsPerTile} />
       <Vegetation counts={settings.vegetationPerTile} />
+      <Butterflies />
+      <Fireflies />
       <Greeters />
       <Person />
       <Pug />

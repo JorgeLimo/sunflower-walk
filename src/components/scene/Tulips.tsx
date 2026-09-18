@@ -15,6 +15,7 @@ import { TILE_LENGTH, TOTAL_TILES } from '../../lib/constants';
 import { createInitialTileIndices, recycleTileIndices, tileRenderZ } from '../../lib/tileSystem';
 import { useScrollState } from '../story/scrollContext';
 import { colors } from '../../lib/colors';
+import { windGustFactor } from '../../lib/wind';
 
 interface TulipsProps {
   counts: TulipTierCounts;
@@ -99,7 +100,8 @@ export function Tulips({ counts }: TulipsProps) {
       // Avance continuo, siempre, sin importar el nivel de viento de sus
       // variantes — escritura escalar barata (ver Sunflowers.tsx).
       const group = groupRefs.current[slot];
-      if (group) group.position.z = tileRenderZ(indices[slot], distance);
+      const groupZ = tileRenderZ(indices[slot], distance);
+      if (group) group.position.z = groupZ;
 
       if (recycled[slot]) {
         tileLocals[slot] = generateTileTulips(indices[slot], counts);
@@ -128,7 +130,8 @@ export function Tulips({ counts }: TulipsProps) {
           baseEuler.set(f.tiltX, f.rotationY, f.tiltZ);
           baseQuat.setFromEuler(baseEuler);
 
-          const sway = Math.sin(t * f.speed + f.phase) * 0.08;
+          const gust = windGustFactor(f.x, groupZ + f.z, t);
+          const sway = Math.sin(t * f.speed + f.phase) * 0.08 * gust;
           windQuat.setFromAxisAngle(windAxis, sway);
           finalQuat.copy(windQuat).multiply(baseQuat);
 

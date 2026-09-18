@@ -8,6 +8,7 @@ import { ROAD_WIDTH, TILE_LENGTH, TOTAL_TILES } from '../../lib/constants';
 import { createInitialTileIndices, recycleTileIndices, tileRenderZ } from '../../lib/tileSystem';
 import { useScrollState } from '../story/scrollContext';
 import { createPlacedGrid, scatterInBand, type SpatialBand } from '../../lib/fieldDistribution';
+import { windGustFactor } from '../../lib/wind';
 import type { VegetationTierCounts } from '../../lib/viewport';
 
 interface BushLocal {
@@ -73,6 +74,8 @@ interface WildflowerLocal {
   scale: number;
   rotationY: number;
   tint: number;
+  phase: number;
+  speed: number;
 }
 
 /** Florecitas silvestres a ras de césped: solo puntos de color (blanco a
@@ -92,6 +95,8 @@ function generateWildflowers(index: number, count: number): WildflowerLocal[] {
       // 0 = blanco, 1 = amarillo pálido — variedad barata vía instanceColor
       // en vez de dos geometrías/materiales distintos.
       tint: random(),
+      phase: random() * Math.PI * 2,
+      speed: randomBetween(random, 0.5, 0.9),
     });
   }
   return out;
@@ -102,6 +107,8 @@ interface GrassLocal {
   z: number;
   scale: number;
   rotationY: number;
+  phase: number;
+  speed: number;
 }
 
 /** Matas de hierba baja pegadas al camino: es justo la franja donde más se
@@ -120,6 +127,8 @@ function generateGrass(index: number, count: number): GrassLocal[] {
       z: randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2),
       scale: randomBetween(random, 0.7, 1.55),
       rotationY: random() * Math.PI * 2,
+      phase: random() * Math.PI * 2,
+      speed: randomBetween(random, 0.7, 1.2),
     });
   }
   return out;
@@ -130,6 +139,8 @@ interface TallGrassLocal {
   z: number;
   scale: number;
   rotationY: number;
+  phase: number;
+  speed: number;
 }
 
 /** Segunda capa de altura: matas más grandes y menos numerosas que
@@ -146,6 +157,8 @@ function generateTallGrass(index: number, count: number): TallGrassLocal[] {
       z: randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2),
       scale: randomBetween(random, 0.8, 1.4),
       rotationY: random() * Math.PI * 2,
+      phase: random() * Math.PI * 2,
+      speed: randomBetween(random, 0.6, 1.0),
     });
   }
   return out;
@@ -157,6 +170,8 @@ interface GroundLeafLocal {
   scale: number;
   rotationY: number;
   tint: number;
+  phase: number;
+  speed: number;
 }
 
 // Dos sub-franjas en vez de una sola ancha con reparto uniforme: con una
@@ -206,6 +221,8 @@ function generateGroundLeaves(index: number, count: number): GroundLeafLocal[] {
       scale: randomBetween(random, 0.9, 1.7),
       rotationY: random() * Math.PI * 2,
       tint: random(),
+      phase: random() * Math.PI * 2,
+      speed: randomBetween(random, 0.6, 1.0),
     });
   };
 
@@ -414,7 +431,8 @@ export function Vegetation({ counts }: VegetationProps) {
   const tallGrassCount = counts.tallGrass * TOTAL_TILES;
   const groundLeafCount = counts.groundLeaves * TOTAL_TILES;
 
-  useFrame(() => {
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
     const distance = scrollState.current.smoothDistance;
     const targetMinIndex = Math.floor(distance / TILE_LENGTH) - 2;
     const recycled = recycleTileIndices(indices, targetMinIndex);
@@ -465,8 +483,10 @@ export function Vegetation({ counts }: VegetationProps) {
         const locals = flowerLocals[slot];
         for (let i = 0; i < locals.length; i++) {
           const f = locals[i];
+          const gust = windGustFactor(f.x, tileWorldZ + f.z, t);
+          const sway = Math.sin(t * f.speed + f.phase) * 0.05 * gust;
           dummy.position.set(f.x, 0, tileWorldZ + f.z);
-          dummy.rotation.set(0, f.rotationY, 0);
+          dummy.rotation.set(sway, f.rotationY, sway * 0.6);
           dummy.scale.setScalar(f.scale);
           dummy.updateMatrix();
           const instanceIndex = slot * counts.wildflowers + i;
@@ -480,8 +500,10 @@ export function Vegetation({ counts }: VegetationProps) {
         const locals = grassLocals[slot];
         for (let i = 0; i < locals.length; i++) {
           const g = locals[i];
+          const gust = windGustFactor(g.x, tileWorldZ + g.z, t);
+          const sway = Math.sin(t * g.speed + g.phase) * 0.06 * gust;
           dummy.position.set(g.x, 0, tileWorldZ + g.z);
-          dummy.rotation.set(0, g.rotationY, 0);
+          dummy.rotation.set(sway, g.rotationY, sway * 0.7);
           dummy.scale.setScalar(g.scale);
           dummy.updateMatrix();
           grassMesh.setMatrixAt(slot * counts.grass + i, dummy.matrix);
@@ -492,8 +514,10 @@ export function Vegetation({ counts }: VegetationProps) {
         const locals = tallGrassLocals[slot];
         for (let i = 0; i < locals.length; i++) {
           const g = locals[i];
+          const gust = windGustFactor(g.x, tileWorldZ + g.z, t);
+          const sway = Math.sin(t * g.speed + g.phase) * 0.09 * gust;
           dummy.position.set(g.x, 0, tileWorldZ + g.z);
-          dummy.rotation.set(0, g.rotationY, 0);
+          dummy.rotation.set(sway, g.rotationY, sway * 0.7);
           dummy.scale.setScalar(g.scale);
           dummy.updateMatrix();
           tallGrassMesh.setMatrixAt(slot * counts.tallGrass + i, dummy.matrix);
@@ -504,8 +528,10 @@ export function Vegetation({ counts }: VegetationProps) {
         const locals = groundLeafLocals[slot];
         for (let i = 0; i < locals.length; i++) {
           const l = locals[i];
+          const gust = windGustFactor(l.x, tileWorldZ + l.z, t);
+          const sway = Math.sin(t * l.speed + l.phase) * 0.035 * gust;
           dummy.position.set(l.x, 0, tileWorldZ + l.z);
-          dummy.rotation.set(0, l.rotationY, 0);
+          dummy.rotation.set(sway, l.rotationY, sway * 0.6);
           dummy.scale.setScalar(l.scale);
           dummy.updateMatrix();
           const instanceIndex = slot * counts.groundLeaves + i;
