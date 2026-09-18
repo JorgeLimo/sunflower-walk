@@ -8,7 +8,9 @@ import { damp, clamp, createSeededRandom, randomBetween } from '../../lib/random
 import { CAT_SIDE_OFFSET, VELOCITY_FOR_FULL_WALK } from '../../lib/constants';
 
 // Paso más corto y ligero que el trote del Pug, y de paso evita que ambos
-// animales se muevan sincronizados.
+// animales se muevan sincronizados. Ritmo natural, igual que WALK_FREQ en
+// Person.tsx (ver su comentario): el avance real más rápido sale de
+// `VELOCITY_FOR_FULL_WALK`, no de acelerar esta animación.
 const STEP_FREQ = 7.2;
 const LEG_SWING = 0.46;
 

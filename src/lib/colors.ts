@@ -37,6 +37,12 @@ export const colors = {
   personScarf: '#f2efe4',
   personBlush: '#f0a898',
 
+  // Personitas motivadoras del camino: mismo tono de piel/pelo que la
+  // protagonista (misma familia de personajes, ver Person.tsx) pero cada
+  // una con su propio color de ropa — así se leen como vecinos distintos
+  // del mismo pueblo, nunca como copias idénticas unas de otras.
+  greeterOutfits: ['#e8916f', '#7fa8c9', '#8fae6a', '#e0b054', '#b090c4'],
+
   pugBody: '#d9b98a',
   pugBodyShadow: '#c2a274',
   pugDark: '#3a2e28',

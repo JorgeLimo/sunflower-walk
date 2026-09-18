@@ -26,11 +26,21 @@ export const CAT_SIDE_OFFSET = -PUG_SIDE_OFFSET;
  * propósito: el paseo debe sentirse lento y cinematográfico, nunca veloz. */
 export const SCROLL_TO_WORLD = 0.012;
 
-/** Velocidad de scroll (unidades de mundo / segundo) a la que la caminata
- * alcanza su intensidad máxima. Por debajo de esto, se camina "a medias".
- * Reducida en la misma proporción que SCROLL_TO_WORLD, así que hace falta
- * el mismo esfuerzo de scroll de siempre para ver la caminata completa. */
-export const VELOCITY_FOR_FULL_WALK = 1.0;
+/** El tope real de velocidad del mundo (unidades de mundo / segundo): por
+ * más fuerte que se scrollee, `smoothDistance` — de donde sale TODO el
+ * movimiento visible (camino, tiles, ciclo día/noche, faroles, etc., ver
+ * `ScrollPhysics.tsx`) — nunca avanza más rápido que esto. También es la
+ * velocidad a la que la caminata de la protagonista/Pug/gato alcanza su
+ * intensidad máxima, por diseño: son la misma referencia de velocidad, así
+ * que un scroll sostenido siempre las mantiene sincronizadas entre sí.
+ * ×3 en una ronda anterior y ×2 más en esta (×6 sobre el original) para
+ * que el recorrido avance más rápido en conjunto — la cadencia de piernas
+ * (`WALK_FREQ` en Person.tsx y equivalentes en Pug.tsx/Cat.tsx) se
+ * mantiene en su ritmo natural, sin tocar, así que el paso se ve más largo
+ * (más distancia real por zancada) en vez de una caminata acelerada o una
+ * carrera. `MAX_LEAD` en ScrollPhysics.tsx se calcula a partir de esta
+ * constante, así que escala solo. */
+export const VELOCITY_FOR_FULL_WALK = 1.0 * 3 * 2;
 
 /** Longitud (en unidades de mundo) de un ciclo día→noche→día completo.
  * Se redujo junto con SCROLL_TO_WORLD para mantener aproximadamente el

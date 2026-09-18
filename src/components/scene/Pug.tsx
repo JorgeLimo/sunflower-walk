@@ -7,6 +7,10 @@ import { colors } from '../../lib/colors';
 import { damp, clamp, createSeededRandom, randomBetween } from '../../lib/random';
 import { PUG_SIDE_OFFSET, VELOCITY_FOR_FULL_WALK } from '../../lib/constants';
 
+// Ritmo natural del trote, igual que WALK_FREQ en Person.tsx (ver su
+// comentario): el avance real más rápido sale de `VELOCITY_FOR_FULL_WALK`,
+// no de acelerar esta animación — así el Pug camina, no corre, junto a la
+// protagonista.
 const TROT_FREQ = 6.4;
 const LEG_SWING = 0.5;
 

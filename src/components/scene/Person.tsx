@@ -7,6 +7,14 @@ import { colors } from '../../lib/colors';
 import { damp, clamp } from '../../lib/random';
 import { VELOCITY_FOR_FULL_WALK } from '../../lib/constants';
 
+// Ritmo natural de la zancada (frecuencia del ciclo de piernas/brazos). Una
+// ronda anterior lo triplicó buscando una "caminata más rápida", pero eso
+// solo aceleraba la ANIMACIÓN — la distancia real recorrida (que depende
+// únicamente de `scrollState.current.velocity`, nunca de esto) seguía
+// igual, así que el resultado se veía como correr en el lugar. El avance
+// real 3 veces más rápido ahora sale de `VELOCITY_FOR_FULL_WALK` (ver
+// constants.ts); acá se mantiene el ritmo original para que cada zancada
+// cubra más distancia real en vez de volverse una carrera.
 const WALK_FREQ = 5.2;
 const LEG_SWING = 0.55;
 const ARM_SWING = 0.5;
