@@ -7,8 +7,9 @@ import { createSeededRandom, randomBetween } from '../../lib/random';
 import { ROAD_WIDTH, TILE_LENGTH, TOTAL_TILES } from '../../lib/constants';
 import { createInitialTileIndices, recycleTileIndices, tileRenderZ } from '../../lib/tileSystem';
 import { useScrollState } from '../story/scrollContext';
-import { createPlacedGrid, scatterInBand, type SpatialBand } from '../../lib/fieldDistribution';
+import { createPlacedGrid, scatterInBand, type SpatialBand, type ExclusionZone } from '../../lib/fieldDistribution';
 import { windGustFactor } from '../../lib/wind';
+import { greeterExclusionZonesForTile } from '../../lib/generateTileGreeters';
 import type { VegetationTierCounts } from '../../lib/viewport';
 
 interface BushLocal {
@@ -18,14 +19,35 @@ interface BushLocal {
   rotationY: number;
 }
 
+function insideAnyExclusion(x: number, z: number, exclusions: ExclusionZone[]): boolean {
+  for (const zone of exclusions) {
+    const dx = x - zone.x;
+    const dz = z - zone.z;
+    if (dx * dx + dz * dz < zone.radius * zone.radius) return true;
+  }
+  return false;
+}
+
 function generateBushes(index: number, count: number): BushLocal[] {
   const random = createSeededRandom(index * 5153 + 37);
   const out: BushLocal[] = [];
+  // Un arbusto entero plantado sobre una personita se veía peor que
+  // cualquier otra planta (es la más grande y sólida de la vegetación de
+  // apoyo) — mismo criterio que girasoles/tulipanes/lirios, ver
+  // `greeterExclusionZonesForTile`.
+  const exclusions = greeterExclusionZonesForTile(index);
   for (let i = 0; i < count; i++) {
     const side = random() < 0.5 ? -1 : 1;
+    let x = 0;
+    let z = 0;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      x = side * randomBetween(random, ROAD_WIDTH / 2 + 0.6, ROAD_WIDTH / 2 + 6);
+      z = randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2);
+      if (!insideAnyExclusion(x, z, exclusions)) break;
+    }
     out.push({
-      x: side * randomBetween(random, ROAD_WIDTH / 2 + 0.6, ROAD_WIDTH / 2 + 6),
-      z: randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2),
+      x,
+      z,
       // Más chicos que antes: al reducir la escala de los girasoles, unos
       // arbustos grandes pasaban a competir con ellos por la atención.
       scale: randomBetween(random, 0.22, 0.46),
@@ -85,11 +107,19 @@ interface WildflowerLocal {
 function generateWildflowers(index: number, count: number): WildflowerLocal[] {
   const random = createSeededRandom(index * 9227 + 13);
   const out: WildflowerLocal[] = [];
+  const exclusions = greeterExclusionZonesForTile(index);
   for (let i = 0; i < count; i++) {
     const side = random() < 0.5 ? -1 : 1;
+    let x = 0;
+    let z = 0;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      x = side * randomBetween(random, ROAD_WIDTH / 2 + 1.4, ROAD_WIDTH / 2 + 38);
+      z = randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2);
+      if (!insideAnyExclusion(x, z, exclusions)) break;
+    }
     out.push({
-      x: side * randomBetween(random, ROAD_WIDTH / 2 + 1.4, ROAD_WIDTH / 2 + 38),
-      z: randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2),
+      x,
+      z,
       scale: randomBetween(random, 0.7, 1.2),
       rotationY: random() * Math.PI * 2,
       // 0 = blanco, 1 = amarillo pálido — variedad barata vía instanceColor
@@ -117,14 +147,22 @@ interface GrassLocal {
 function generateGrass(index: number, count: number): GrassLocal[] {
   const random = createSeededRandom(index * 6421 + 97);
   const out: GrassLocal[] = [];
+  const exclusions = greeterExclusionZonesForTile(index);
   for (let i = 0; i < count; i++) {
     const side = random() < 0.5 ? -1 : 1;
-    out.push({
+    let x = 0;
+    let z = 0;
+    for (let attempt = 0; attempt < 6; attempt++) {
       // Un poco más ancha que antes (+10 → +14): la franja de girasoles de
       // primer plano empieza casi pegada al camino, así que ensanchar acá
       // evita que quede un salto brusco entre "césped corto" y "girasoles".
-      x: side * randomBetween(random, ROAD_WIDTH / 2 + 0.1, ROAD_WIDTH / 2 + 14),
-      z: randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2),
+      x = side * randomBetween(random, ROAD_WIDTH / 2 + 0.1, ROAD_WIDTH / 2 + 14);
+      z = randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2);
+      if (!insideAnyExclusion(x, z, exclusions)) break;
+    }
+    out.push({
+      x,
+      z,
       scale: randomBetween(random, 0.7, 1.55),
       rotationY: random() * Math.PI * 2,
       phase: random() * Math.PI * 2,
@@ -150,11 +188,19 @@ interface TallGrassLocal {
 function generateTallGrass(index: number, count: number): TallGrassLocal[] {
   const random = createSeededRandom(index * 7561 + 251);
   const out: TallGrassLocal[] = [];
+  const exclusions = greeterExclusionZonesForTile(index);
   for (let i = 0; i < count; i++) {
     const side = random() < 0.5 ? -1 : 1;
+    let x = 0;
+    let z = 0;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      x = side * randomBetween(random, ROAD_WIDTH / 2 + 1.2, ROAD_WIDTH / 2 + 24);
+      z = randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2);
+      if (!insideAnyExclusion(x, z, exclusions)) break;
+    }
     out.push({
-      x: side * randomBetween(random, ROAD_WIDTH / 2 + 1.2, ROAD_WIDTH / 2 + 24),
-      z: randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2),
+      x,
+      z,
       scale: randomBetween(random, 0.8, 1.4),
       rotationY: random() * Math.PI * 2,
       phase: random() * Math.PI * 2,
@@ -214,6 +260,7 @@ function generateGroundLeaves(index: number, count: number): GroundLeafLocal[] {
   const random = createSeededRandom(index * 4441 + 613);
   const out: GroundLeafLocal[] = [];
   const worldZBase = index * TILE_LENGTH;
+  const exclusions = greeterExclusionZonesForTile(index);
   const place = (x: number, z: number) => {
     out.push({
       x,
@@ -229,10 +276,10 @@ function generateGroundLeaves(index: number, count: number): GroundLeafLocal[] {
   // ~60% de las hojas cerca del camino, ~40% en la franja media.
   const nearCount = Math.round(count * 0.6);
   const gridNear = createPlacedGrid(GROUND_LEAF_NEAR_BAND.minDist);
-  scatterInBand(random, nearCount, GROUND_LEAF_NEAR_BAND, gridNear, worldZBase, 0.15, groundLeafDensityAt, place);
+  scatterInBand(random, nearCount, GROUND_LEAF_NEAR_BAND, gridNear, worldZBase, 0.15, groundLeafDensityAt, place, exclusions);
 
   const gridMid = createPlacedGrid(GROUND_LEAF_MID_BAND.minDist);
-  scatterInBand(random, count - nearCount, GROUND_LEAF_MID_BAND, gridMid, worldZBase, 0.15, groundLeafDensityAt, place);
+  scatterInBand(random, count - nearCount, GROUND_LEAF_MID_BAND, gridMid, worldZBase, 0.15, groundLeafDensityAt, place, exclusions);
 
   return out;
 }

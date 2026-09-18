@@ -154,24 +154,45 @@ export function pickAvailableCluster(random: () => number, clusters: Cluster[]):
   return clusters[clusters.length - 1];
 }
 
+/** Círculo del que las plantas deben mantenerse afuera — se usa para que
+ * ninguna quede clavada encima de una personita motivadora ni atravesando
+ * su cartel (ver `greeterExclusionZones` en generateTileGreeters.ts). */
+export interface ExclusionZone {
+  x: number;
+  z: number;
+  radius: number;
+}
+
+function insideExclusion(x: number, z: number, exclusions?: ExclusionZone[]): boolean {
+  if (!exclusions || exclusions.length === 0) return false;
+  for (const zone of exclusions) {
+    const dx = x - zone.x;
+    const dz = z - zone.z;
+    if (dx * dx + dz * dz < zone.radius * zone.radius) return true;
+  }
+  return false;
+}
+
 /** Genera un candidato (x,z) repetidas veces hasta que quede a al menos
- * `minDist` de todos los ya colocados (o se agoten los intentos, para no
- * quedarse atascado). Registra el resultado en la rejilla antes de
- * devolverlo. Si se agotan los intentos, devuelve `null` — vale más un
- * hueco de césped que dos plantas encimadas. */
+ * `minDist` de todos los ya colocados y fuera de cualquier `exclusions`
+ * (o se agoten los intentos, para no quedarse atascado). Registra el
+ * resultado en la rejilla antes de devolverlo. Si se agotan los intentos,
+ * devuelve `null` — vale más un hueco de césped que dos plantas encimadas
+ * o una planta atravesando a una personita. */
 export function placeWithMinDistance(
   maxAttempts: number,
   minDist: number,
   grid: PlacedGrid,
   generate: () => { x: number; z: number },
+  exclusions?: ExclusionZone[],
 ): { x: number; z: number } | null {
   const minDistSq = minDist * minDist;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const candidate = generate();
-    if (!gridHasNeighbor(grid, candidate.x, candidate.z, minDistSq)) {
-      gridAdd(grid, candidate);
-      return candidate;
-    }
+    if (gridHasNeighbor(grid, candidate.x, candidate.z, minDistSq)) continue;
+    if (insideExclusion(candidate.x, candidate.z, exclusions)) continue;
+    gridAdd(grid, candidate);
+    return candidate;
   }
   return null;
 }
@@ -188,6 +209,7 @@ export function scatterInBand(
   isolatedRatio: number,
   density: (worldZ: number) => number,
   place: (x: number, z: number) => void,
+  exclusions?: ExclusionZone[],
 ) {
   if (count === 0) return;
 
@@ -203,13 +225,19 @@ export function scatterInBand(
 
     for (let i = 0; i < clusteredCount; i++) {
       const cluster = pickAvailableCluster(random, clusters);
-      const spot = placeWithMinDistance(16, band.minDist, grid, () => {
-        const jitterX = (random() + random() - 1) * cluster.spread * 0.5;
-        const absX = clamp(Math.abs(cluster.x + jitterX), band.xMin, band.xMax);
-        const cx = cluster.side * absX;
-        const cz = wrapZ(cluster.z + (random() + random() - 1) * cluster.spread);
-        return { x: cx, z: cz };
-      });
+      const spot = placeWithMinDistance(
+        16,
+        band.minDist,
+        grid,
+        () => {
+          const jitterX = (random() + random() - 1) * cluster.spread * 0.5;
+          const absX = clamp(Math.abs(cluster.x + jitterX), band.xMin, band.xMax);
+          const cx = cluster.side * absX;
+          const cz = wrapZ(cluster.z + (random() + random() - 1) * cluster.spread);
+          return { x: cx, z: cz };
+        },
+        exclusions,
+      );
       if (!spot) continue;
       cluster.count++;
       place(spot.x, spot.z);
@@ -217,12 +245,18 @@ export function scatterInBand(
   }
 
   for (let i = 0; i < isolatedCount; i++) {
-    const spot = placeWithMinDistance(16, band.minDist, grid, () => {
-      const side = random() < 0.5 ? -1 : 1;
-      const cx = side * randomBetween(random, band.xMin, band.xMax);
-      const cz = randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2);
-      return { x: cx, z: cz };
-    });
+    const spot = placeWithMinDistance(
+      16,
+      band.minDist,
+      grid,
+      () => {
+        const side = random() < 0.5 ? -1 : 1;
+        const cx = side * randomBetween(random, band.xMin, band.xMax);
+        const cz = randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2);
+        return { x: cx, z: cz };
+      },
+      exclusions,
+    );
     if (!spot) continue;
     place(spot.x, spot.z);
   }

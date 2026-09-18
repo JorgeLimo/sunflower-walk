@@ -41,7 +41,8 @@ interface PoseConfig {
 // claramente distinta desde lejos. El MOVIMIENTO propio de cada una (lo que
 // las hace sentir vivas en vez de figuras clavadas) se aplica cuadro a
 // cuadro en useFrame, encima de estos ángulos base — ver el switch más
-// abajo.
+// abajo. NINGUNA de estas poses ni el switch de useFrame cambiaron en esta
+// pasada — solo la geometría (ver más abajo) que esos mismos grupos mueven.
 const POSE_TABLE: Record<GreeterPose, PoseConfig> = {
   front: {
     armLeft: [-1.35, 0.2],
@@ -55,8 +56,13 @@ const POSE_TABLE: Record<GreeterPose, PoseConfig> = {
     armLeft: [-0.55, 2.7],
     armRight: [-0.55, -2.7],
     legSpread: 0.06,
-    signPosition: [0, 0.93, 0.1],
-    signTilt: -0.32,
+    // El cartel NO acompaña a los brazos hacia arriba (ver nota en el
+    // pedido: nunca debe acercarse a la altura de la cabeza) — queda a la
+    // misma altura "segura" que en el resto de las poses mientras los
+    // brazos igual se estiran bien alto, como si la persona festejara con
+    // los brazos y dejara el cartel apoyado tranquilo a su lado.
+    signPosition: [0, 0.46, 0.22],
+    signTilt: -0.12,
     lean: 0,
   },
   armsUp: {
@@ -86,13 +92,45 @@ const POSE_TABLE: Record<GreeterPose, PoseConfig> = {
 };
 
 const HIP_HEIGHT = 0.34;
+// Alto del torso (perfil tallado, ver `buildTorsoGeometry`): del cinturón
+// (y=0 local) a la base del cuello (y=TORSO_HEIGHT local).
+const TORSO_HEIGHT = 0.32;
+const NECK_HEIGHT = 0.09;
+const SHOULDER_Y = HIP_HEIGHT + TORSO_HEIGHT * 0.86;
+const NECK_Y = HIP_HEIGHT + TORSO_HEIGHT + NECK_HEIGHT / 2;
+const HEAD_Y = NECK_Y + NECK_HEIGHT / 2 + 0.085;
 
-const legGeometry = new THREE.CapsuleGeometry(0.052, HIP_HEIGHT - 0.09, 4, 6);
-const armGeometry = new THREE.CapsuleGeometry(0.048, 0.24, 4, 6);
-const torsoGeometry = new THREE.CapsuleGeometry(0.115, 0.28, 4, 8);
-const headGeometry = new THREE.SphereGeometry(0.135, 14, 14);
-const hairGeometry = new THREE.SphereGeometry(0.144, 14, 14, 0, Math.PI * 2, 0, Math.PI * 0.6);
-const faceGeometry = new THREE.PlaneGeometry(0.2, 0.2);
+/**
+ * Torso con perfil tallado a mano (cintura → pecho → hombros → cuello) en
+ * vez de una cápsula uniforme: es lo que más pesaba en la sensación de
+ * "muñeco de bloques" — un cilindro con las puntas redondeadas nunca va a
+ * leerse como un torso real, sin importar cuántos segmentos tenga. El
+ * mismo perfil, al revolucionarlo, ya sugiere algo de volumen de ropa sin
+ * necesitar una capa aparte.
+ */
+function buildTorsoGeometry(): THREE.BufferGeometry {
+  const profile = [
+    new THREE.Vector2(0.086, 0),
+    new THREE.Vector2(0.095, 0.045),
+    new THREE.Vector2(0.089, 0.12),
+    new THREE.Vector2(0.099, 0.2),
+    new THREE.Vector2(0.104, TORSO_HEIGHT * 0.86),
+    new THREE.Vector2(0.055, TORSO_HEIGHT),
+  ];
+  const geo = new THREE.LatheGeometry(profile, 20);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+const legGeometry = new THREE.CapsuleGeometry(0.05, HIP_HEIGHT - 0.1, 4, 12);
+const footGeometry = new THREE.SphereGeometry(0.058, 12, 8);
+const armGeometry = new THREE.CapsuleGeometry(0.043, 0.205, 4, 12);
+const handGeometry = new THREE.SphereGeometry(0.049, 12, 8);
+const neckGeometry = new THREE.CylinderGeometry(0.042, 0.058, NECK_HEIGHT, 12);
+const torsoGeometry = buildTorsoGeometry();
+const headGeometry = new THREE.SphereGeometry(0.125, 26, 20);
+const hairGeometry = new THREE.SphereGeometry(0.136, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.63);
+const faceGeometry = new THREE.PlaneGeometry(0.19, 0.19);
 const signPlaneGeometry = new THREE.PlaneGeometry(SIGN_WIDTH, SIGN_HEIGHT);
 const signBackingGeometry = new THREE.BoxGeometry(SIGN_WIDTH + 0.045, SIGN_HEIGHT + 0.045, 0.025);
 const stickGeometry = new THREE.CylinderGeometry(0.014, 0.018, 0.36, 5);
@@ -103,7 +141,6 @@ const skinMaterial = new THREE.MeshStandardMaterial({
   emissive: colors.sunGlow,
   emissiveIntensity: 0,
 });
-const hairMaterial = new THREE.MeshStandardMaterial({ color: colors.personHair, roughness: 0.9 });
 const stickMaterial = new THREE.MeshStandardMaterial({ color: colors.stemDark, roughness: 0.9 });
 
 export interface GreeterFigureHandle {
@@ -111,17 +148,20 @@ export interface GreeterFigureHandle {
 }
 
 /**
- * Una personita motivadora: geometría simple (cápsulas + esferas), mismo
- * vocabulario visual que `Person.tsx` pero más pequeña y sin ciclo de
- * caminata — son parte fija del paisaje, nunca avanzan. `apply()` es la
- * única forma de reposicionarla o cambiarle la pose/frase/color/cara: se
- * llama SOLO cuando el tile que la contiene se recicla (ver `Greeters.tsx`),
- * nunca cuadro a cuadro.
+ * Una personita motivadora: geometría orgánica (torso tallado, cuello,
+ * manos y pies propios, muchos más segmentos que antes en piernas/brazos/
+ * cabeza) en vez del vocabulario "cápsula + esfera" original, que se leía
+ * demasiado geométrico/tipo LEGO. Sigue siendo más pequeña que la
+ * protagonista y sin ciclo de caminata — son parte fija del paisaje, nunca
+ * avanzan. `apply()` es la única forma de reposicionarla o cambiarle la
+ * pose/frase/color/cara: se llama SOLO cuando el tile que la contiene se
+ * recicla (ver `Greeters.tsx`), nunca cuadro a cuadro.
  *
- * El movimiento SÍ corre todos los cuadros (useFrame), pero solo mientras
- * el grupo está visible: cada pose tiene su propia animación (agitar los
- * brazos, saltitos con piernas, balanceo, etc.) para que ninguna se sienta
- * "flotando" sin vida — ver el switch dentro de useFrame.
+ * El cartel es un grupo hermano del cuerpo (no un hijo de ningún brazo):
+ * `apply()` fija su posición/rotación una sola vez por pose y ninguna rama
+ * de `useFrame` vuelve a tocarlas cuadro a cuadro — a propósito, para que
+ * nunca se acerque ni se aleje de la cabeza mientras el resto del cuerpo
+ * (brazos, piernas, torso) sigue animándose con total libertad.
  */
 export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
   const groupRef = useRef<THREE.Group>(null);
@@ -133,10 +173,13 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
   const signGroupRef = useRef<THREE.Group>(null);
   const signGlowRef = useRef<THREE.SpriteMaterial>(null);
 
-  const poseRef = useRef<{ pose: GreeterPose; cfg: PoseConfig; phase: number; rotationY: number } | null>(null);
+  const poseRef = useRef<{ pose: GreeterPose; cfg: PoseConfig; phase: number; rotationY: number; heightScale: number } | null>(
+    null,
+  );
 
   const bodyMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: colors.greeterOutfits[0], roughness: 0.85 }), []);
   const legMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: colors.greeterOutfits[0], roughness: 0.9 }), []);
+  const hairMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: colors.greeterHair[0], roughness: 0.85 }), []);
   const faceMaterial = useMemo(
     () => new THREE.MeshStandardMaterial({ map: GREETER_FACE_TEXTURES[0], roughness: 0.9, transparent: true, alphaTest: 0.4 }),
     [],
@@ -163,18 +206,19 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
       }
 
       const cfg = POSE_TABLE[local.pose];
-      poseRef.current = { pose: local.pose, cfg, phase: local.phase, rotationY: local.rotationY };
+      poseRef.current = { pose: local.pose, cfg, phase: local.phase, rotationY: local.rotationY, heightScale: local.heightScale };
 
       if (group) {
         group.visible = true;
         group.position.set(local.x, 0, local.z);
         group.rotation.set(0, local.rotationY, cfg.lean);
-        group.scale.setScalar(FIGURE_SCALE);
+        group.scale.setScalar(FIGURE_SCALE * local.heightScale);
       }
 
       const outfit = colors.greeterOutfits[local.outfitIndex];
       bodyMaterial.color.set(outfit);
       legMaterial.color.set(outfit).multiplyScalar(0.82);
+      hairMaterial.color.set(colors.greeterHair[local.hairIndex]);
       faceMaterial.map = GREETER_FACE_TEXTURES[local.faceIndex];
       faceMaterial.needsUpdate = true;
 
@@ -222,7 +266,6 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
     let legRightX = 0;
     let extraLean = 0;
     let extraTurn = 0;
-    let signBobY = 0;
     let scaleY = 1;
     let scaleXZ = 1;
 
@@ -235,15 +278,14 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
       case 'front': {
         // La más tranquila del grupo (contraste a propósito frente a las
         // demás, más enérgicas): un balanceo de peso suave que involucra el
-        // torso entero, más el gesto de levantar el cartel un poco y
-        // volver a bajarlo — un movimiento propio del cartel, distinto del
-        // vaivén del cuerpo.
+        // torso entero. El cartel ya NO acompaña este vaivén con un
+        // sube-y-baja propio — queda fijo en su posición, para que nunca
+        // se acerque ni se aleje de la cabeza cuadro a cuadro.
         const sway = Math.sin(t * 1.1 + phase);
         armLeftZ += sway * 0.16;
         armRightZ -= sway * 0.16;
         extraLean = sway * 0.06;
         bodyY = Math.sin(t * 0.75 + phase) * 0.018;
-        signBobY = Math.sin(t * 0.85 + phase * 1.3) * 0.045;
         break;
       }
       case 'overhead': {
@@ -326,44 +368,50 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
     if (legLeftRef.current) legLeftRef.current.rotation.x = legLeftX;
     if (legRightRef.current) legRightRef.current.rotation.x = legRightX;
     if (headRef.current) headRef.current.rotation.y = Math.sin(t * 0.3 + phase) * 0.2;
-    if (signGroupRef.current && signBobY !== 0) {
-      signGroupRef.current.position.y = cfg.signPosition[1] + signBobY;
-    }
 
     group.position.y = bodyY;
     group.rotation.z = cfg.lean + extraLean;
     group.rotation.y = cur.rotationY + extraTurn;
-    group.scale.set(FIGURE_SCALE * scaleXZ, FIGURE_SCALE * scaleY, FIGURE_SCALE * scaleXZ);
+    const h = cur.heightScale;
+    group.scale.set(FIGURE_SCALE * scaleXZ * h, FIGURE_SCALE * scaleY * h, FIGURE_SCALE * scaleXZ * h);
   });
 
   return (
     <group ref={groupRef} visible={false}>
-      {/* Piernas */}
-      <group ref={legLeftRef} position={[0.075, HIP_HEIGHT, 0]}>
-        <mesh position={[0, -(HIP_HEIGHT - 0.09) / 2 - 0.045, 0]} geometry={legGeometry} material={legMaterial} castShadow />
+      {/* Piernas, con un pie propio en la base */}
+      <group ref={legLeftRef} position={[0.07, HIP_HEIGHT, 0]}>
+        <mesh position={[0, -(HIP_HEIGHT - 0.1) / 2 - 0.05, 0]} geometry={legGeometry} material={legMaterial} castShadow />
+        <mesh position={[0, -HIP_HEIGHT + 0.032, 0.022]} scale={[1.05, 0.6, 1.35]} geometry={footGeometry} material={legMaterial} castShadow />
       </group>
-      <group ref={legRightRef} position={[-0.075, HIP_HEIGHT, 0]}>
-        <mesh position={[0, -(HIP_HEIGHT - 0.09) / 2 - 0.045, 0]} geometry={legGeometry} material={legMaterial} castShadow />
+      <group ref={legRightRef} position={[-0.07, HIP_HEIGHT, 0]}>
+        <mesh position={[0, -(HIP_HEIGHT - 0.1) / 2 - 0.05, 0]} geometry={legGeometry} material={legMaterial} castShadow />
+        <mesh position={[0, -HIP_HEIGHT + 0.032, 0.022]} scale={[1.05, 0.6, 1.35]} geometry={footGeometry} material={legMaterial} castShadow />
       </group>
 
-      {/* Torso */}
-      <mesh position={[0, 0.52, 0]} geometry={torsoGeometry} material={bodyMaterial} castShadow />
+      {/* Torso tallado (cintura → hombros) */}
+      <mesh position={[0, HIP_HEIGHT, 0]} geometry={torsoGeometry} material={bodyMaterial} castShadow />
+
+      {/* Cuello: sin esto, la cabeza quedaba pegada directo al torso — el
+          principal culpable de la sensación de "figura de bloques". */}
+      <mesh position={[0, NECK_Y, 0]} geometry={neckGeometry} material={skinMaterial} castShadow />
 
       {/* Cabeza */}
-      <group ref={headRef} position={[0, 0.71, 0]}>
+      <group ref={headRef} position={[0, HEAD_Y, 0]}>
         <mesh geometry={headGeometry} material={skinMaterial} castShadow />
-        <mesh position={[0, 0.06, -0.015]} geometry={hairGeometry} material={hairMaterial} castShadow />
+        <mesh position={[0, 0.05, -0.012]} geometry={hairGeometry} material={hairMaterial} castShadow />
         {/* Carita: una "calcomanía" plana pegada justo al frente de la
             cabeza (mismo lado que el cartel), con sonrisa y sonrojo. */}
-        <mesh position={[0, -0.01, 0.145]} geometry={faceGeometry} material={faceMaterial} />
+        <mesh position={[0, -0.01, 0.135]} geometry={faceGeometry} material={faceMaterial} />
       </group>
 
-      {/* Brazos */}
-      <group ref={armLeftRef} position={[0.155, 0.62, 0]}>
-        <mesh position={[0, -0.12, 0]} geometry={armGeometry} material={skinMaterial} castShadow />
+      {/* Brazos, con una mano propia en la punta */}
+      <group ref={armLeftRef} position={[0.135, SHOULDER_Y, 0]}>
+        <mesh position={[0, -0.1, 0]} geometry={armGeometry} material={skinMaterial} castShadow />
+        <mesh position={[0, -0.21, 0]} geometry={handGeometry} material={skinMaterial} castShadow />
       </group>
-      <group ref={armRightRef} position={[-0.155, 0.62, 0]}>
-        <mesh position={[0, -0.12, 0]} geometry={armGeometry} material={skinMaterial} castShadow />
+      <group ref={armRightRef} position={[-0.135, SHOULDER_Y, 0]}>
+        <mesh position={[0, -0.1, 0]} geometry={armGeometry} material={skinMaterial} castShadow />
+        <mesh position={[0, -0.21, 0]} geometry={handGeometry} material={skinMaterial} castShadow />
       </group>
 
       {/* Cartel: tabla + tarjeta con el texto de la frase, más un mango
@@ -385,7 +433,7 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
         <mesh geometry={signBackingGeometry} castShadow>
           <meshStandardMaterial color={colors.roadEdge} roughness={0.9} />
         </mesh>
-        <mesh geometry={signPlaneGeometry} material={signMaterial} position={[0, 0, 0.017]} />
+        <mesh geometry={signPlaneGeometry} material={signMaterial} position={[0, 0, 0.032]} />
       </group>
     </group>
   );

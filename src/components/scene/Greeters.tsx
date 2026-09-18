@@ -16,11 +16,11 @@ import { GreeterFigure, type GreeterFigureHandle } from './GreeterFigure';
  * de instancia puramente locales) — así permanecen clavadas en el paisaje
  * mientras el personaje las deja atrás, en vez de avanzar con el scroll.
  *
- * Cada tile puede traer HASTA DOS personitas (una por lado, decididas de
- * forma independiente en `generateTileGreeters`) — de ahí que cada slot
- * monte dos `GreeterFigure` en vez de una sola. Como mucho hay
- * `TOTAL_TILES * 2` (18) montadas a la vez, siempre ocultas
- * (`visible=false`) salvo que su tile tenga alguien de ese lado.
+ * Cada tile puede traer HASTA CUATRO personitas (cercana y lejana por lado,
+ * decididas de forma independiente en `generateTileGreeters`) — de ahí que
+ * cada slot monte cuatro `GreeterFigure` en vez de dos. Como mucho hay
+ * `TOTAL_TILES * 4` (36) montadas a la vez, siempre ocultas
+ * (`visible=false`) salvo que su tile tenga alguien en esa posición.
  *
  * También es quien mantiene `greeterNightState.nightFactor` al día: ya
  * recorre el ciclo día/noche para nada más que mover los tiles, así que
@@ -33,6 +33,8 @@ export function Greeters() {
   const groupRefs = useRef<(THREE.Group | null)[]>([]);
   const leftFigureRefs = useRef<(GreeterFigureHandle | null)[]>([]);
   const rightFigureRefs = useRef<(GreeterFigureHandle | null)[]>([]);
+  const farLeftFigureRefs = useRef<(GreeterFigureHandle | null)[]>([]);
+  const farRightFigureRefs = useRef<(GreeterFigureHandle | null)[]>([]);
   const indices = useRef<number[]>(createInitialTileIndices()).current;
   const tileLocals = useRef<TileGreeters[]>(indices.map((index) => generateTileGreeters(index))).current;
   const firstFrame = useRef(true);
@@ -56,6 +58,8 @@ export function Greeters() {
         if (recycled[slot]) tileLocals[slot] = generateTileGreeters(indices[slot]);
         leftFigureRefs.current[slot]?.apply(tileLocals[slot].left);
         rightFigureRefs.current[slot]?.apply(tileLocals[slot].right);
+        farLeftFigureRefs.current[slot]?.apply(tileLocals[slot].farLeft);
+        farRightFigureRefs.current[slot]?.apply(tileLocals[slot].farRight);
       }
     }
   });
@@ -78,6 +82,16 @@ export function Greeters() {
           <GreeterFigure
             ref={(el) => {
               rightFigureRefs.current[slot] = el;
+            }}
+          />
+          <GreeterFigure
+            ref={(el) => {
+              farLeftFigureRefs.current[slot] = el;
+            }}
+          />
+          <GreeterFigure
+            ref={(el) => {
+              farRightFigureRefs.current[slot] = el;
             }}
           />
         </group>

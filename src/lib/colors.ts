@@ -42,6 +42,10 @@ export const colors = {
   // una con su propio color de ropa — así se leen como vecinos distintos
   // del mismo pueblo, nunca como copias idénticas unas de otras.
   greeterOutfits: ['#e8916f', '#7fa8c9', '#8fae6a', '#e0b054', '#b090c4'],
+  // Variedad de cabello (nunca todas del mismo castaño que la protagonista):
+  // un puñado de tonos cálidos y naturales, coherentes con la piel/ropa ya
+  // definidas.
+  greeterHair: ['#4a3226', '#2b211c', '#7a4a2e', '#c99a5b', '#5e4335'],
 
   pugBody: '#d9b98a',
   pugBodyShadow: '#c2a274',

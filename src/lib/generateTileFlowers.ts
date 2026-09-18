@@ -8,7 +8,9 @@ import {
   scatterInBand,
   type SpatialBand,
   type PlacedGrid,
+  type ExclusionZone,
 } from './fieldDistribution';
+import { greeterExclusionZonesForTile } from './generateTileGreeters';
 
 export interface FlowerLocal {
   x: number;
@@ -136,6 +138,7 @@ function fillFlowers(
   maturity: SunflowerMaturity,
   grid: PlacedGrid,
   worldZBase: number,
+  exclusions: ExclusionZone[],
 ): FlowerLocal[] {
   const out: FlowerLocal[] = [];
   const maturityScale = maturity === 'young' ? 0.72 : 1;
@@ -164,6 +167,7 @@ function fillFlowers(
         tint: random(),
       });
     },
+    exclusions,
   );
 
   return out;
@@ -186,13 +190,17 @@ export function generateTileFlowers(index: number, counts: SunflowerTierCounts):
   // franja media podían acabar exactamente en el mismo sitio, que es de
   // donde salían los grupos de flores encimadas.
   const grid = createPlacedGrid(Math.max(...TIERS.map((t) => BAND_DEFS[t].minDist)));
+  // Ningún girasol debe crecer encima de una personita ni atravesar su
+  // cartel — ver `greeterExclusionZonesForTile`. Mismo `index`, así que
+  // esto nunca se desincroniza de dónde termina realmente cada personita.
+  const exclusions = greeterExclusionZonesForTile(index);
 
   TIERS.forEach((tier) => {
     const band = BAND_DEFS[tier];
     MATURITIES.forEach((maturity) => {
       STYLES.forEach((style) => {
         const key: SunflowerVariantKey = `${tier}-${maturity}-${style}`;
-        result[key] = fillFlowers(random, variantCounts[key], band, maturity, grid, worldZBase);
+        result[key] = fillFlowers(random, variantCounts[key], band, maturity, grid, worldZBase, exclusions);
       });
     });
   });

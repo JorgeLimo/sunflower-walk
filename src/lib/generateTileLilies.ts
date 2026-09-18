@@ -1,6 +1,13 @@
 import { createSeededRandom, randomBetween } from './random';
 import { ROAD_WIDTH, TILE_LENGTH } from './constants';
-import { fieldDensityAt, createPlacedGrid, scatterInBand, type SpatialBand } from './fieldDistribution';
+import {
+  fieldDensityAt,
+  createPlacedGrid,
+  scatterInBand,
+  type SpatialBand,
+  type ExclusionZone,
+} from './fieldDistribution';
+import { greeterExclusionZonesForTile } from './generateTileGreeters';
 import type { LilyDetail } from './lilyGeometry';
 
 export interface LilyLocal {
@@ -95,22 +102,33 @@ function fillLilies(
   band: Band,
   grid: ReturnType<typeof createPlacedGrid>,
   worldZBase: number,
+  exclusions: ExclusionZone[],
 ): LilyLocal[] {
   const out: LilyLocal[] = [];
 
-  scatterInBand(random, count, band, grid, worldZBase, ISOLATED_RATIO, lilyDensityAt, (x, z) => {
-    out.push({
-      x,
-      z,
-      rotationY: random() * Math.PI * 2,
-      tiltX: randomBetween(random, -0.12, 0.12),
-      tiltZ: randomBetween(random, -0.12, 0.12),
-      scale: randomBetween(random, band.scaleMin, band.scaleMax),
-      phase: random() * Math.PI * 2,
-      speed: randomBetween(random, 0.6, 1.1),
-      tint: random(),
-    });
-  });
+  scatterInBand(
+    random,
+    count,
+    band,
+    grid,
+    worldZBase,
+    ISOLATED_RATIO,
+    lilyDensityAt,
+    (x, z) => {
+      out.push({
+        x,
+        z,
+        rotationY: random() * Math.PI * 2,
+        tiltX: randomBetween(random, -0.12, 0.12),
+        tiltZ: randomBetween(random, -0.12, 0.12),
+        scale: randomBetween(random, band.scaleMin, band.scaleMax),
+        phase: random() * Math.PI * 2,
+        speed: randomBetween(random, 0.6, 1.1),
+        tint: random(),
+      });
+    },
+    exclusions,
+  );
 
   return out;
 }
@@ -130,12 +148,13 @@ export function generateTileLilies(index: number, counts: LilyTierCounts): Recor
   // pueden convivir muy cerca sin problema — son especies distintas, no
   // compiten por el mismo lugar exacto en el campo.
   const grid = createPlacedGrid(Math.max(...TIERS.map((t) => BAND_DEFS[t].minDist)));
+  const exclusions = greeterExclusionZonesForTile(index);
 
   TIERS.forEach((tier) => {
     const band = BAND_DEFS[tier];
     STYLES.forEach((style) => {
       const key: LilyVariantKey = `${tier}-${style}`;
-      result[key] = fillLilies(random, variantCounts[key], band, grid, worldZBase);
+      result[key] = fillLilies(random, variantCounts[key], band, grid, worldZBase, exclusions);
     });
   });
 

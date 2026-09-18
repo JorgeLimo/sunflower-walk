@@ -14,7 +14,15 @@ import { PUG_SIDE_OFFSET, VELOCITY_FOR_FULL_WALK } from '../../lib/constants';
 const TROT_FREQ = 6.4;
 const LEG_SWING = 0.5;
 
-type Behavior = 'walking' | 'sniffing' | 'lookingAside' | 'catchingUp';
+type Behavior =
+  | 'walking'
+  | 'sniffing'
+  | 'lookingAside'
+  | 'catchingUp'
+  | 'lookingAtWoman'
+  | 'happyHop'
+  | 'wearingHat'
+  | 'playingGuitar';
 
 const random = createSeededRandom(777);
 
@@ -42,17 +50,25 @@ export function Pug() {
   const legBRRef = useRef<THREE.Group>(null);
   const eyeLeftRef = useRef<THREE.Mesh>(null);
   const eyeRightRef = useRef<THREE.Mesh>(null);
+  const hatRef = useRef<THREE.Group>(null);
+  const guitarRef = useRef<THREE.Group>(null);
 
   const scrollState = useScrollState();
   const gaitPhase = useRef(0);
   const walkIntensity = useRef(0);
 
   const behavior = useRef<Behavior>('walking');
-  const behaviorTimeLeft = useRef(randomBetween(random, 4, 8));
+  const behaviorTimeLeft = useRef(randomBetween(random, 3, 6));
+  // Duración TOTAL del comportamiento actual (se fija junto con
+  // `behaviorTimeLeft` en cada transición) — solo hace falta para el
+  // sombrero/guitarra, que necesitan un 0→1→0 de aparición/desaparición en
+  // vez de solo "encendido/apagado".
+  const behaviorDuration = useRef(1);
   const lagOffset = useRef(0);
   const sideWander = useRef(0);
   const headYaw = useRef(0);
   const headPitch = useRef(0);
+  const hopPhase = useRef(0);
   const blinkTimer = useRef(randomBetween(random, 2, 5));
 
   useFrame((state, delta) => {
@@ -66,26 +82,57 @@ export function Pug() {
     behaviorTimeLeft.current -= delta;
     if (behaviorTimeLeft.current <= 0) {
       if (behavior.current === 'walking') {
+        // Los cuatro comportamientos "easter egg" (mirar a la mujer, saltito
+        // de alegría, sombrero, guitarra) se suman a los ya existentes en la
+        // misma tirada. Subido a pedido explícito ("relativamente comunes,
+        // no eventos rarísimos"): mirar/saltar ahora son casi tan comunes
+        // como olfatear, y sombrero/guitarra —aunque siguen siendo los menos
+        // frecuentes— aparecen varias veces en un recorrido normal en vez de
+        // requerir varias vueltas completas al camino.
         const roll = random();
-        if (roll < 0.35) {
+        if (roll < 0.22) {
           behavior.current = 'sniffing';
           behaviorTimeLeft.current = randomBetween(random, 1.2, 2.2);
-        } else if (roll < 0.6) {
+        } else if (roll < 0.4) {
           behavior.current = 'lookingAside';
           behaviorTimeLeft.current = randomBetween(random, 1, 1.8);
+        } else if (roll < 0.58) {
+          behavior.current = 'lookingAtWoman';
+          behaviorTimeLeft.current = randomBetween(random, 1.5, 2.5);
+        } else if (roll < 0.72) {
+          behavior.current = 'happyHop';
+          behaviorTimeLeft.current = randomBetween(random, 0.7, 1.1);
+          hopPhase.current = 0;
+        } else if (roll < 0.8) {
+          // Menos frecuente que los anteriores, pero ya no "rarísimo": un
+          // sombrerito gracioso que se pone y se saca solo.
+          behavior.current = 'wearingHat';
+          behaviorTimeLeft.current = randomBetween(random, 3, 4.5);
+        } else if (roll < 0.84) {
+          // El más especial de los seis, pero sigue apareciendo cada tanto
+          // en un recorrido normal, no solo tras varias vueltas.
+          behavior.current = 'playingGuitar';
+          behaviorTimeLeft.current = randomBetween(random, 3.5, 5);
         } else {
-          behaviorTimeLeft.current = randomBetween(random, 5, 9);
+          behaviorTimeLeft.current = randomBetween(random, 4, 7);
         }
       } else if (behavior.current === 'catchingUp') {
         behavior.current = 'walking';
-        behaviorTimeLeft.current = randomBetween(random, 5, 9);
+        behaviorTimeLeft.current = randomBetween(random, 4, 7);
       } else {
         behavior.current = 'catchingUp';
         behaviorTimeLeft.current = randomBetween(random, 1, 1.8);
       }
+      behaviorDuration.current = behaviorTimeLeft.current;
     }
 
-    const isPaused = behavior.current === 'sniffing' || behavior.current === 'lookingAside';
+    const isPaused =
+      behavior.current === 'sniffing' ||
+      behavior.current === 'lookingAside' ||
+      behavior.current === 'lookingAtWoman' ||
+      behavior.current === 'happyHop' ||
+      behavior.current === 'wearingHat' ||
+      behavior.current === 'playingGuitar';
     const behaviorSpeedFactor = behavior.current === 'catchingUp' ? 1.8 : isPaused ? 0.15 : 1;
 
     // El rezago solo se acumula/recupera mientras el mundo se mueve.
@@ -95,10 +142,36 @@ export function Pug() {
     const targetWander = behavior.current === 'lookingAside' ? 0.35 : 0;
     sideWander.current = damp(sideWander.current, targetWander, 4, delta);
 
-    const targetYaw = behavior.current === 'lookingAside' ? 0.7 : 0;
-    const targetPitch = behavior.current === 'sniffing' ? 0.5 : 0;
+    // "Mirar a la mujer" gira la cabeza para el lado CONTRARIO a
+    // `lookingAside` (que mira hacia afuera, al campo) — la protagonista
+    // está del lado opuesto del Pug respecto de este offset lateral.
+    const targetYaw = behavior.current === 'lookingAside' ? 0.7 : behavior.current === 'lookingAtWoman' ? -0.75 : 0;
+    const targetPitch = behavior.current === 'sniffing' ? 0.5 : behavior.current === 'lookingAtWoman' ? 0.12 : 0;
     headYaw.current = damp(headYaw.current, targetYaw, 5, delta);
     headPitch.current = damp(headPitch.current, targetPitch, 5, delta);
+
+    // --- Saltito de alegría: un rebote corto y propio, no atado al trote ---
+    if (behavior.current === 'happyHop') {
+      hopPhase.current += delta * 9;
+    } else {
+      hopPhase.current = 0;
+    }
+    const happyHopBounce = behavior.current === 'happyHop' ? Math.abs(Math.sin(hopPhase.current)) * 0.09 : 0;
+
+    // --- Sombrero y guitarra: aparecen y desaparecen con un 0→1→0 suave,
+    // nunca de golpe (ver `behaviorDuration`) ---
+    const behaviorElapsed = behaviorDuration.current - behaviorTimeLeft.current;
+    const propEnvelope =
+      THREE.MathUtils.smoothstep(behaviorElapsed, 0, 0.3) * THREE.MathUtils.smoothstep(behaviorTimeLeft.current, 0, 0.3);
+    const hatScale = behavior.current === 'wearingHat' ? propEnvelope : 0;
+    const guitarScale = behavior.current === 'playingGuitar' ? propEnvelope : 0;
+    if (hatRef.current) hatRef.current.scale.setScalar(hatScale);
+    if (guitarRef.current) {
+      guitarRef.current.scale.setScalar(guitarScale);
+      // Rasgueo divertido: un vaivén rápido mientras suena.
+      guitarRef.current.rotation.z = Math.sin(t * 13) * 0.09 * guitarScale;
+      guitarRef.current.rotation.x = 0.25 + Math.sin(t * 5) * 0.05 * guitarScale;
+    }
 
     // --- Trote: la fase solo avanza con velocidad real ---
     const speedFactor = behaviorSpeedFactor * intensity;
@@ -115,7 +188,7 @@ export function Pug() {
         3,
         delta,
       );
-      rootRef.current.position.y = 0.24 + Math.abs(Math.sin(gait)) * 0.03 * speedFactor;
+      rootRef.current.position.y = 0.24 + Math.abs(Math.sin(gait)) * 0.03 * speedFactor + happyHopBounce;
     }
 
     // --- Patas (pares diagonales), amplitud atada a la intensidad ---
@@ -195,6 +268,35 @@ export function Pug() {
             <meshStandardMaterial color={colors.pugDark} roughness={0.9} />
           </mesh>
         </group>
+
+        {/* Sombrerito de fiesta: easter egg raro, aparece/desaparece solo
+            durante el comportamiento "wearingHat" (arranca en escala 0). */}
+        <group ref={hatRef} position={[0, 0.19, 0.03]} rotation={[0.12, 0, 0.3]} scale={[0, 0, 0]}>
+          <mesh castShadow>
+            <coneGeometry args={[0.065, 0.15, 10]} />
+            <meshStandardMaterial color={colors.tulipPink} roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 0.085, 0]} castShadow>
+            <sphereGeometry args={[0.024, 8, 8]} />
+            <meshStandardMaterial color={colors.petal} roughness={0.6} />
+          </mesh>
+        </group>
+      </group>
+
+      {/* Guitarra: easter egg rarísimo, aparece/desaparece solo durante el
+          comportamiento "playingGuitar" (arranca en escala 0). Flota frente
+          al pecho — sin brazos/patas delanteras libres para "sostenerla" de
+          verdad, así que se queda en el gesto estilizado, coherente con el
+          resto del mundo. */}
+      <group ref={guitarRef} position={[0.19, 0.19, 0.1]} scale={[0, 0, 0]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.09, 0.1, 0.045, 16]} />
+          <meshStandardMaterial color={colors.roadEdge} roughness={0.7} />
+        </mesh>
+        <mesh position={[0, 0.16, 0.01]} castShadow>
+          <cylinderGeometry args={[0.012, 0.014, 0.22, 8]} />
+          <meshStandardMaterial color={colors.stemDark} roughness={0.8} />
+        </mesh>
       </group>
 
       {/* Cola */}

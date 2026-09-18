@@ -19,7 +19,15 @@ const LEG_SWING = 0.46;
  * anterior) para poder curvarla y recorrerla con una onda. */
 const TAIL_SEGMENTS = 5;
 
-type Behavior = 'walking' | 'watchingFlowers' | 'sniffing' | 'trotting';
+type Behavior =
+  | 'walking'
+  | 'watchingFlowers'
+  | 'sniffing'
+  | 'trotting'
+  | 'lookingAtWoman'
+  | 'happyHop'
+  | 'wearingHat'
+  | 'playingGuitar';
 
 // Semilla propia (el Pug usa 777): si compartieran generador, sus
 // comportamientos "autónomos" caerían siempre en el mismo orden.
@@ -55,17 +63,23 @@ export function Cat() {
   const legBRRef = useRef<THREE.Group>(null);
   const eyeLeftRef = useRef<THREE.Mesh>(null);
   const eyeRightRef = useRef<THREE.Mesh>(null);
+  const hatRef = useRef<THREE.Group>(null);
+  const guitarRef = useRef<THREE.Group>(null);
 
   const scrollState = useScrollState();
   const gaitPhase = useRef(0);
   const walkIntensity = useRef(0);
 
   const behavior = useRef<Behavior>('walking');
-  const behaviorTimeLeft = useRef(randomBetween(random, 3, 7));
+  const behaviorTimeLeft = useRef(randomBetween(random, 3, 6));
+  // Duración TOTAL del comportamiento actual — solo hace falta para el
+  // sombrero/guitarra (ver Pug.tsx, mismo mecanismo).
+  const behaviorDuration = useRef(1);
   const lagOffset = useRef(0);
   const sideWander = useRef(0);
   const headYaw = useRef(0);
   const headPitch = useRef(0);
+  const hopPhase = useRef(0);
   const blinkTimer = useRef(randomBetween(random, 1.5, 4));
   const earTwitch = useRef(randomBetween(random, 2, 5));
 
@@ -80,27 +94,54 @@ export function Cat() {
     behaviorTimeLeft.current -= delta;
     if (behaviorTimeLeft.current <= 0) {
       if (behavior.current === 'walking') {
+        // Semilla propia (`random`, ver arriba) — los easter eggs del gato
+        // caen en instantes distintos de los del Pug aunque compartan las
+        // mismas probabilidades relativas. Subido a pedido explícito
+        // ("relativamente comunes, no eventos rarísimos") — ver el
+        // comentario equivalente en Pug.tsx.
         const roll = random();
-        if (roll < 0.4) {
+        if (roll < 0.28) {
           behavior.current = 'watchingFlowers';
           behaviorTimeLeft.current = randomBetween(random, 1.4, 2.6);
-        } else if (roll < 0.62) {
+        } else if (roll < 0.42) {
           behavior.current = 'sniffing';
           behaviorTimeLeft.current = randomBetween(random, 1, 1.8);
+        } else if (roll < 0.6) {
+          behavior.current = 'lookingAtWoman';
+          behaviorTimeLeft.current = randomBetween(random, 1.5, 2.5);
+        } else if (roll < 0.74) {
+          behavior.current = 'happyHop';
+          behaviorTimeLeft.current = randomBetween(random, 0.7, 1.1);
+          hopPhase.current = 0;
+        } else if (roll < 0.82) {
+          // Menos frecuente que los anteriores, pero ya no "rarísimo".
+          behavior.current = 'wearingHat';
+          behaviorTimeLeft.current = randomBetween(random, 3, 4.5);
+        } else if (roll < 0.86) {
+          // El más especial de los seis, pero sigue apareciendo cada tanto.
+          behavior.current = 'playingGuitar';
+          behaviorTimeLeft.current = randomBetween(random, 3.5, 5);
         } else {
-          behaviorTimeLeft.current = randomBetween(random, 4, 8);
+          behaviorTimeLeft.current = randomBetween(random, 4, 7);
         }
       } else if (behavior.current === 'trotting') {
         behavior.current = 'walking';
-        behaviorTimeLeft.current = randomBetween(random, 4, 8);
+        behaviorTimeLeft.current = randomBetween(random, 4, 7);
       } else {
         // Tras entretenerse se ha quedado atrás: acelera para reengancharse.
         behavior.current = 'trotting';
         behaviorTimeLeft.current = randomBetween(random, 1.2, 2.2);
       }
+      behaviorDuration.current = behaviorTimeLeft.current;
     }
 
-    const isPaused = behavior.current === 'watchingFlowers' || behavior.current === 'sniffing';
+    const isPaused =
+      behavior.current === 'watchingFlowers' ||
+      behavior.current === 'sniffing' ||
+      behavior.current === 'lookingAtWoman' ||
+      behavior.current === 'happyHop' ||
+      behavior.current === 'wearingHat' ||
+      behavior.current === 'playingGuitar';
     const behaviorSpeedFactor = behavior.current === 'trotting' ? 1.7 : isPaused ? 0.12 : 1;
 
     lagOffset.current += (isPaused ? 0.55 : behavior.current === 'trotting' ? -1.3 : 0) * delta * intensity;
@@ -109,10 +150,33 @@ export function Cat() {
     const targetWander = behavior.current === 'watchingFlowers' ? 0.26 : 0;
     sideWander.current = damp(sideWander.current, targetWander, 3.5, delta);
 
-    const targetYaw = behavior.current === 'watchingFlowers' ? -0.85 : 0;
+    // "Mirar a la mujer" gira hacia el lado CONTRARIO de `watchingFlowers`
+    // (que mira hacia el campo) — la protagonista queda del otro lado.
+    const targetYaw = behavior.current === 'watchingFlowers' ? -0.85 : behavior.current === 'lookingAtWoman' ? 0.8 : 0;
     const targetPitch = behavior.current === 'sniffing' ? 0.5 : behavior.current === 'watchingFlowers' ? -0.16 : 0;
     headYaw.current = damp(headYaw.current, targetYaw, 4.5, delta);
     headPitch.current = damp(headPitch.current, targetPitch, 4.5, delta);
+
+    // --- Saltito de alegría: un rebote corto y propio, no atado al paso ---
+    if (behavior.current === 'happyHop') {
+      hopPhase.current += delta * 10;
+    } else {
+      hopPhase.current = 0;
+    }
+    const happyHopBounce = behavior.current === 'happyHop' ? Math.abs(Math.sin(hopPhase.current)) * 0.055 : 0;
+
+    // --- Sombrero y guitarra: aparecen/desaparecen con un 0→1→0 suave ---
+    const behaviorElapsed = behaviorDuration.current - behaviorTimeLeft.current;
+    const propEnvelope =
+      THREE.MathUtils.smoothstep(behaviorElapsed, 0, 0.3) * THREE.MathUtils.smoothstep(behaviorTimeLeft.current, 0, 0.3);
+    const hatScale = behavior.current === 'wearingHat' ? propEnvelope : 0;
+    const guitarScale = behavior.current === 'playingGuitar' ? propEnvelope : 0;
+    if (hatRef.current) hatRef.current.scale.setScalar(hatScale);
+    if (guitarRef.current) {
+      guitarRef.current.scale.setScalar(guitarScale);
+      guitarRef.current.rotation.z = Math.sin(t * 13) * 0.08 * guitarScale;
+      guitarRef.current.rotation.x = 0.22 + Math.sin(t * 5) * 0.05 * guitarScale;
+    }
 
     // --- Paso: la fase solo avanza con velocidad real ---
     const speedFactor = behaviorSpeedFactor * intensity;
@@ -122,7 +186,7 @@ export function Cat() {
     if (rootRef.current) {
       rootRef.current.position.z = CHARACTER_Z + 0.4 + lagOffset.current;
       rootRef.current.position.x = damp(rootRef.current.position.x, CAT_SIDE_OFFSET + sideWander.current, 3, delta);
-      rootRef.current.position.y = 0.2 + Math.abs(Math.sin(gait)) * 0.016 * speedFactor;
+      rootRef.current.position.y = 0.2 + Math.abs(Math.sin(gait)) * 0.016 * speedFactor + happyHopBounce;
     }
 
     if (bodyRef.current) {
@@ -254,6 +318,33 @@ export function Cat() {
               <meshStandardMaterial color={colors.catNose} roughness={0.9} />
             </mesh>
           </group>
+
+          {/* Sombrerito de fiesta: easter egg raro (arranca en escala 0),
+              ver `wearingHat` en useFrame. */}
+          <group ref={hatRef} position={[0, 0.09, 0.01]} rotation={[0.1, 0, -0.25]} scale={[0, 0, 0]}>
+            <mesh castShadow>
+              <coneGeometry args={[0.032, 0.075, 10]} />
+              <meshStandardMaterial color={colors.tulipPink} roughness={0.7} />
+            </mesh>
+            <mesh position={[0, 0.042, 0]} castShadow>
+              <sphereGeometry args={[0.012, 8, 8]} />
+              <meshStandardMaterial color={colors.petal} roughness={0.6} />
+            </mesh>
+          </group>
+        </group>
+
+        {/* Guitarra: easter egg rarísimo (arranca en escala 0), ver
+            `playingGuitar` en useFrame. Flota junto al pecho, mismo gesto
+            estilizado que en Pug.tsx. */}
+        <group ref={guitarRef} position={[0.095, 0.1, 0.06]} scale={[0, 0, 0]}>
+          <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[0.05, 0.056, 0.025, 14]} />
+            <meshStandardMaterial color={colors.roadEdge} roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 0.09, 0.006]} castShadow>
+            <cylinderGeometry args={[0.007, 0.008, 0.12, 8]} />
+            <meshStandardMaterial color={colors.stemDark} roughness={0.8} />
+          </mesh>
         </group>
 
         {/* Cola larga y articulada, tan larga como el cuerpo. Sale de la

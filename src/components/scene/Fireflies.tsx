@@ -25,20 +25,26 @@ interface FireflyLocal {
   warmth: number;
 }
 
-// Como mucho un manchón chico (2-4) y/o una individual por tile — "algunos
-// grupos dispersos y también algunas individuales", nunca una alfombra
-// pareja. Con estas probabilidades, la mayoría de los tiles no tiene
-// ninguna: es lo que hace que encontrarse con luciérnagas se sienta como
-// un rincón particular del campo, no un efecto ambiental uniforme.
-const CLUSTER_CHANCE = 0.5;
-const SOLO_CHANCE = 0.3;
-const MAX_PER_TILE = 5;
+// Subido una vez a pedido explícito ("muy pocas... casi no se perciben") y
+// ahora otra vez, más leve ("ya son visibles, pero quiero un poco más,
+// sobre todo en los costados"): manchones apenas más grandes/frecuentes,
+// más una tercera pasada suelta enfocada en las franjas laterales más
+// alejadas del camino — pero cada tile sigue siendo su propia tirada
+// independiente, así que la distribución final sigue sin ser una alfombra
+// pareja: unos tramos del camino quedan con varias luciérnagas visibles a
+// la vez y otros más tranquilos, nunca una "lluvia de partículas" constante.
+const CLUSTER_CHANCE = 0.85;
+const SOLO_CHANCE = 0.68;
+const MAX_PER_TILE = 14;
 
 function pushFirefly(out: FireflyLocal[], random: () => number, x: number, z: number) {
   out.push({
     x,
     z,
-    baseY: randomBetween(random, 0.14, 0.5),
+    // Rango de altura más amplio que antes: algunas casi al ras del suelo,
+    // otras flotando a la altura de un tulipán/lirio — "diferentes alturas"
+    // pedido explícitamente.
+    baseY: randomBetween(random, 0.12, 0.68),
     phaseX: random() * Math.PI * 2,
     phaseY: random() * Math.PI * 2,
     phaseZ: random() * Math.PI * 2,
@@ -50,9 +56,9 @@ function pushFirefly(out: FireflyLocal[], random: () => number, x: number, z: nu
 }
 
 /** Genera (determinísticamente, a partir de `index`) las luciérnagas de UN
- * tile: como mucho un manchón de 2-4 más, a veces, una individual suelta
- * en otro punto — mismo patrón determinístico por-tile que el resto del
- * mundo (girasoles, lirios, personitas). */
+ * tile: como mucho un manchón de 3-7 más hasta tres individuales sueltas a
+ * distintas distancias del camino — mismo patrón determinístico por-tile
+ * que el resto del mundo (girasoles, lirios, personitas). */
 function generateTileFireflies(index: number): FireflyLocal[] {
   const random = createSeededRandom(index * 6203 + 911);
   const out: FireflyLocal[] = [];
@@ -61,18 +67,43 @@ function generateTileFireflies(index: number): FireflyLocal[] {
     const side = random() < 0.5 ? -1 : 1;
     const cx = side * randomBetween(random, ROAD_WIDTH / 2 + 0.6, ROAD_WIDTH / 2 + 8);
     const cz = randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2);
-    const count = 2 + Math.floor(random() * 3);
+    const count = 3 + Math.floor(random() * 5);
     for (let i = 0; i < count; i++) {
-      pushFirefly(out, random, cx + randomBetween(random, -1.3, 1.3), cz + randomBetween(random, -1.3, 1.3));
+      pushFirefly(out, random, cx + randomBetween(random, -1.5, 1.5), cz + randomBetween(random, -1.5, 1.5));
     }
   }
 
+  // Una segunda pasada de "sueltas" (no solo una): entre las flores, un poco
+  // más lejos del camino que los manchones — para que también aparezcan
+  // luciérnagas más adentro del campo, no solo pegadas al borde.
   if (random() < SOLO_CHANCE) {
     const side = random() < 0.5 ? -1 : 1;
     pushFirefly(
       out,
       random,
-      side * randomBetween(random, ROAD_WIDTH / 2 + 0.6, ROAD_WIDTH / 2 + 10),
+      side * randomBetween(random, ROAD_WIDTH / 2 + 0.6, ROAD_WIDTH / 2 + 11),
+      randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2),
+    );
+  }
+  if (random() < SOLO_CHANCE * 0.7) {
+    const side = random() < 0.5 ? -1 : 1;
+    pushFirefly(
+      out,
+      random,
+      side * randomBetween(random, ROAD_WIDTH / 2 + 3, ROAD_WIDTH / 2 + 16),
+      randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2),
+    );
+  }
+  // Tercera pasada, la más alejada de las tres: apunta específicamente a la
+  // franja lateral más profunda del campo (pedido explícito de reforzar
+  // "las zonas laterales"), con una chance moderada para que siga siendo un
+  // extra ocasional, no una cuarta capa pareja.
+  if (random() < SOLO_CHANCE * 0.5) {
+    const side = random() < 0.5 ? -1 : 1;
+    pushFirefly(
+      out,
+      random,
+      side * randomBetween(random, ROAD_WIDTH / 2 + 9, ROAD_WIDTH / 2 + 19),
       randomBetween(random, -TILE_LENGTH / 2, TILE_LENGTH / 2),
     );
   }

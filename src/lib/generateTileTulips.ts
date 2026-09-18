@@ -1,6 +1,13 @@
 import { createSeededRandom, randomBetween } from './random';
 import { ROAD_WIDTH, TILE_LENGTH } from './constants';
-import { fieldDensityAt, createPlacedGrid, scatterInBand, type SpatialBand } from './fieldDistribution';
+import {
+  fieldDensityAt,
+  createPlacedGrid,
+  scatterInBand,
+  type SpatialBand,
+  type ExclusionZone,
+} from './fieldDistribution';
+import { greeterExclusionZonesForTile } from './generateTileGreeters';
 import type { TulipDetail } from './tulipGeometry';
 
 export interface TulipLocal {
@@ -100,24 +107,35 @@ function fillTulips(
   band: Band,
   grid: ReturnType<typeof createPlacedGrid>,
   worldZBase: number,
+  exclusions: ExclusionZone[],
 ): TulipLocal[] {
   const out: TulipLocal[] = [];
 
-  scatterInBand(random, count, band, grid, worldZBase, ISOLATED_RATIO, tulipDensityAt, (x, z) => {
-    out.push({
-      x,
-      z,
-      rotationY: random() * Math.PI * 2,
-      tiltX: randomBetween(random, -0.1, 0.1),
-      tiltZ: randomBetween(random, -0.1, 0.1),
-      scale: randomBetween(random, band.scaleMin, band.scaleMax),
-      phase: random() * Math.PI * 2,
-      speed: randomBetween(random, 0.6, 1.1),
-      // Levemente más blancos que rosas (0.46 de probabilidad de rosa):
-      // dos tonos casi parejos, sin que ninguno domine el otro.
-      isPink: random() < 0.46,
-    });
-  });
+  scatterInBand(
+    random,
+    count,
+    band,
+    grid,
+    worldZBase,
+    ISOLATED_RATIO,
+    tulipDensityAt,
+    (x, z) => {
+      out.push({
+        x,
+        z,
+        rotationY: random() * Math.PI * 2,
+        tiltX: randomBetween(random, -0.1, 0.1),
+        tiltZ: randomBetween(random, -0.1, 0.1),
+        scale: randomBetween(random, band.scaleMin, band.scaleMax),
+        phase: random() * Math.PI * 2,
+        speed: randomBetween(random, 0.6, 1.1),
+        // Levemente más blancos que rosas (0.46 de probabilidad de rosa):
+        // dos tonos casi parejos, sin que ninguno domine el otro.
+        isPink: random() < 0.46,
+      });
+    },
+    exclusions,
+  );
 
   return out;
 }
@@ -137,12 +155,13 @@ export function generateTileTulips(index: number, counts: TulipTierCounts): Reco
   // Rejilla propia (no compartida con girasol/lirio): especies distintas
   // pueden convivir muy cerca sin competir por el mismo punto exacto.
   const grid = createPlacedGrid(Math.max(...TIERS.map((t) => BAND_DEFS[t].minDist)));
+  const exclusions = greeterExclusionZonesForTile(index);
 
   TIERS.forEach((tier) => {
     const band = BAND_DEFS[tier];
     STYLES.forEach((style) => {
       const key: TulipVariantKey = `${tier}-${style}`;
-      result[key] = fillTulips(random, variantCounts[key], band, grid, worldZBase);
+      result[key] = fillTulips(random, variantCounts[key], band, grid, worldZBase, exclusions);
     });
   });
 
