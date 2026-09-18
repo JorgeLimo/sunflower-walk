@@ -2,7 +2,10 @@ import { useRef, useState, type ReactNode } from 'react';
 import { AudioApiContext, useAudioApi } from './AudioContext';
 import styles from './BackgroundMusic.module.scss';
 
-const TRACK_SRC = '/audio/audio-music.mp3';
+// `BASE_URL` incluye siempre la barra final (Vite lo garantiza) — en dev es
+// '/' y en producción (GitHub Pages) es '/sunflower-walk/', así que una ruta
+// absoluta fija acá se rompería apenas la app no vive en la raíz del sitio.
+const TRACK_SRC = `${import.meta.env.BASE_URL}audio/audio-music.mp3`;
 
 interface BackgroundMusicProps {
   children: ReactNode;
