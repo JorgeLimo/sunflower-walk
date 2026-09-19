@@ -13,6 +13,17 @@ const TRACK_SRC = trackUrl(0);
 // Tope de seguridad al buscar `audio-music-1.mp3`, `-2.mp3`, ... — la
 // secuencia se arma sola con los archivos que existan en `public/audio`.
 const MAX_TRACKS = 30;
+const VOLUME_STORAGE_KEY = 'sunflower-walk:volume';
+
+function loadStoredVolume(): number {
+  try {
+    const raw = window.localStorage.getItem(VOLUME_STORAGE_KEY);
+    const value = raw === null ? NaN : Number(raw);
+    return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1;
+  } catch {
+    return 1;
+  }
+}
 const CROSSFADE_MS = 1600;
 
 /** Prueba `audio-music-N.mp3` en orden hasta el primero que no exista. El
@@ -48,6 +59,11 @@ export function BackgroundMusic({ children }: BackgroundMusicProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [muted, setMuted] = useState(false);
   const [trackCount, setTrackCount] = useState(1);
+  const [volume, setVolumeState] = useState(loadStoredVolume);
+  // Volumen "maestro": el fundido cruzado lo lee en cada cuadro, así que
+  // moverlo durante un cambio de canción se aplica al instante y el
+  // volumen elegido se mantiene en la canción nueva.
+  const volumeRef = useRef(volume);
   const tracksRef = useRef<string[]>([TRACK_SRC]);
   const indexRef = useRef(0);
   const switchingRef = useRef(false);
@@ -63,6 +79,26 @@ export function BackgroundMusic({ children }: BackgroundMusicProps) {
       return next;
     });
   };
+
+  const setVolume = useCallback(
+    (next: number) => {
+      const v = Math.min(1, Math.max(0, next));
+      volumeRef.current = v;
+      setVolumeState(v);
+      // Durante un fundido cruzado los dos elementos los maneja `step`.
+      if (!switchingRef.current && audioRef.current) audioRef.current.volume = v;
+      try {
+        window.localStorage.setItem(VOLUME_STORAGE_KEY, String(v));
+      } catch {
+        // Sin almacenamiento: el volumen igual funciona en esta sesión.
+      }
+    },
+    [audioRef],
+  );
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volumeRef.current;
+  }, [audioRef]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,20 +136,19 @@ export function BackgroundMusic({ children }: BackgroundMusicProps) {
         indexRef.current = nextIndex;
         audioRef.current = incoming;
         fadingOutRef.current = outgoing;
-        const startVolume = outgoing.volume;
         const t0 = performance.now();
         const step = (now: number) => {
           const p = Math.min((now - t0) / CROSSFADE_MS, 1);
           // Curva de potencia constante aproximada: la suma de volúmenes
           // se mantiene pareja a lo largo del fundido.
-          incoming.volume = Math.sin((p * Math.PI) / 2);
-          outgoing.volume = startVolume * Math.cos((p * Math.PI) / 2);
+          const master = volumeRef.current;
+          incoming.volume = master * Math.sin((p * Math.PI) / 2);
+          outgoing.volume = master * Math.cos((p * Math.PI) / 2);
           if (p < 1) {
             requestAnimationFrame(step);
             return;
           }
           outgoing.pause();
-          outgoing.volume = startVolume;
           fadingOutRef.current = null;
           switchingRef.current = false;
         };
@@ -129,7 +164,7 @@ export function BackgroundMusic({ children }: BackgroundMusicProps) {
   useEffect(() => songBubbleStore.registerNextTrack(nextTrack), [nextTrack]);
 
   return (
-    <AudioApiContext.Provider value={{ audioRef, muted, toggleMuted, trackCount }}>
+    <AudioApiContext.Provider value={{ audioRef, muted, toggleMuted, trackCount, volume, setVolume }}>
       <audio ref={audioRef} src={TRACK_SRC} loop preload="auto" />
       {children}
     </AudioApiContext.Provider>
@@ -155,5 +190,53 @@ export function MusicToggleButton() {
         <span />
       </span>
     </button>
+  );
+}
+
+/** Icono de parlante: las ondas se apagan a medida que baja el volumen. */
+function VolumeIcon({ level }: { level: number }) {
+  return (
+    <svg className={styles.volumeIcon} viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M4 9.5h3.2L11.5 6v12L7.2 14.5H4z" fill="currentColor" />
+      {level > 0 && level <= 0.5 && (
+        <path d="M14.5 9.6a3.6 3.6 0 0 1 0 4.8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      )}
+      {level > 0.5 && (
+        <>
+          <path d="M14.5 9.6a3.6 3.6 0 0 1 0 4.8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          <path d="M17 7.4a6.6 6.6 0 0 1 0 9.2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </>
+      )}
+      {level === 0 && (
+        <path d="M15 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      )}
+    </svg>
+  );
+}
+
+/**
+ * Control de volumen: un icono y una barra, sin menús. Es un
+ * `<input type="range">` nativo (arrastrar, tocar cualquier punto de la
+ * barra y teclado funcionan solos, en escritorio y en móvil), con un área
+ * táctil de 44px de alto aunque la barra se vea fina.
+ */
+export function VolumeControl() {
+  const { volume, setVolume } = useAudioApi();
+
+  return (
+    <div className={styles.volume}>
+      <VolumeIcon level={volume} />
+      <input
+        type="range"
+        className={styles.volumeSlider}
+        min={0}
+        max={100}
+        step={1}
+        value={Math.round(volume * 100)}
+        onChange={(e) => setVolume(Number(e.target.value) / 100)}
+        style={{ '--fill': `${Math.round(volume * 100)}%` } as React.CSSProperties}
+        aria-label="Volumen de la música"
+      />
+    </div>
   );
 }

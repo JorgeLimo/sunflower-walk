@@ -6,6 +6,9 @@ export interface AudioApi {
   toggleMuted: () => void;
   /** Cuántas canciones hay disponibles en la secuencia (mínimo 1). */
   trackCount: number;
+  /** Volumen maestro de la música, de 0 a 1 (se mantiene entre canciones). */
+  volume: number;
+  setVolume: (volume: number) => void;
 }
 
 export const AudioApiContext = createContext<AudioApi | null>(null);

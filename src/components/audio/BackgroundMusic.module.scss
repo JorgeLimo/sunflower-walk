@@ -60,3 +60,104 @@
     height: 100%;
   }
 }
+
+// Control de volumen: una píldora discreta pegada a la izquierda del botón de
+// música, en la esquina inferior derecha — esa zona es camino/césped vacío,
+// nunca tapa a la protagonista, los animales ni los carteles.
+.volume {
+  position: fixed;
+  right: calc(clamp(14px, 3vw, 28px) + 40px + 10px);
+  bottom: clamp(14px, 3vw, 28px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 12px 0 11px;
+  border: 1px solid rgba(74, 63, 53, 0.18);
+  border-radius: 999px;
+  background: rgba(251, 243, 227, 0.75);
+  backdrop-filter: blur(6px);
+  color: $ink;
+  box-shadow: 0 6px 18px rgba(74, 63, 53, 0.12);
+  transition: opacity 0.25s ease;
+
+  // Con mouse queda más tenue hasta que se lo apunta; en táctil siempre se
+  // ve completo (no hay hover).
+  @media (hover: hover) {
+    opacity: 0.6;
+
+    &:hover,
+    &:focus-within {
+      opacity: 1;
+    }
+  }
+}
+
+.volumeIcon {
+  flex: none;
+  opacity: 0.85;
+}
+
+// Barra fina a la vista, pero el `input` mide 44px de alto y 112px de ancho
+// (un poco más en móvil): se puede tocar/arrastrar sin puntería.
+.volumeSlider {
+  --fill: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  width: clamp(104px, 28vw, 132px);
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:focus {
+    outline: none;
+  }
+
+  &::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(to right, $sun-glow var(--fill), rgba(74, 63, 53, 0.2) var(--fill));
+  }
+  &::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(74, 63, 53, 0.2);
+  }
+  &::-moz-range-progress {
+    height: 4px;
+    border-radius: 999px;
+    background: $sun-glow;
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    margin-top: -8px;
+    border: 2px solid $paper;
+    border-radius: 50%;
+    background: $sun-glow;
+    box-shadow: 0 2px 6px rgba(74, 63, 53, 0.3);
+    transition: transform 0.15s ease;
+  }
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: 2px solid $paper;
+    border-radius: 50%;
+    background: $sun-glow;
+    box-shadow: 0 2px 6px rgba(74, 63, 53, 0.3);
+  }
+
+  &:active::-webkit-slider-thumb {
+    transform: scale(1.15);
+  }
+  &:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid rgba(74, 63, 53, 0.5);
+    outline-offset: 2px;
+  }
+}
