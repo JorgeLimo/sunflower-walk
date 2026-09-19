@@ -5,7 +5,8 @@ import { useScrollState } from '../story/scrollContext';
 import { CHARACTER_Z } from '../../lib/walk';
 import { colors } from '../../lib/colors';
 import { damp, clamp } from '../../lib/random';
-import { VELOCITY_FOR_FULL_WALK } from '../../lib/constants';
+import { TILE_LENGTH, VELOCITY_FOR_FULL_WALK } from '../../lib/constants';
+import { generateTileGreeters, type GreeterLocal } from '../../lib/generateTileGreeters';
 
 // Ritmo natural de la zancada (frecuencia del ciclo de piernas/brazos). Una
 // ronda anterior lo triplicó buscando una "caminata más rápida", pero eso
@@ -19,6 +20,26 @@ const WALK_FREQ = 5.2;
 const LEG_SWING = 0.55;
 const ARM_SWING = 0.5;
 const HIP_HEIGHT = 0.62;
+
+// --- Reacción de alegría al pasar junto a un cartel ---
+// Distancia (en Z, hacia adelante) a la que el cartel está de ella cuando
+// dispara la reacción: apenas por delante, como si lo acabara de leer.
+const REACT_AHEAD = 1.6;
+const REACT_DURATION = 1.15;
+// Solo algunos carteles la provocan (decisión fija por cartel, ver
+// `reactsToGreeter`) y, además, nunca dos reacciones seguidas.
+const REACT_CHANCE = 0.3;
+const REACT_COOLDOWN_S = 9;
+const REACT_MAX_LATERAL = 5.3;
+const REACT_MIN_INTENSITY = 0.35;
+const smooth = THREE.MathUtils.smoothstep;
+
+/** Hash estable [0,1) por cartel: el mismo cartel siempre da (o no) la
+ * misma respuesta, sin estado ni aleatoriedad por cuadro. */
+function reactsToGreeter(tileIndex: number, g: GreeterLocal): boolean {
+  const h = Math.sin(tileIndex * 12.9898 + g.z * 78.233 + g.x * 37.719) * 43758.5453;
+  return h - Math.floor(h) < REACT_CHANCE;
+}
 
 /**
  * Personaje procedural de la persona. El ciclo de piernas/brazos NO corre
@@ -50,6 +71,9 @@ export function Person() {
   const scrollState = useScrollState();
   const gaitPhase = useRef(0);
   const walkIntensity = useRef(0);
+  const reactTime = useRef(-1);
+  const lastReactAt = useRef(-Infinity);
+  const prevDistance = useRef<number | null>(null);
 
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
@@ -60,6 +84,47 @@ export function Person() {
     gaitPhase.current += delta * WALK_FREQ * intensity;
     const phase = gaitPhase.current;
 
+    // --- ¿Está pasando junto a un cartel? Cruce hacia adelante de la marca
+    // `REACT_AHEAD` entre el cuadro anterior y este (no hace falta guardar
+    // más estado). La posición de mundo de un cartel es `distancia -
+    // índice*TILE_LENGTH + z`, relativa a ella. ---
+    const distance = scrollState.current.smoothDistance;
+    const prev = prevDistance.current;
+    prevDistance.current = distance;
+    if (prev !== null && distance > prev && reactTime.current < 0 && intensity > REACT_MIN_INTENSITY && t - lastReactAt.current > REACT_COOLDOWN_S) {
+      const centerIndex = Math.floor(distance / TILE_LENGTH);
+      search: for (let idx = centerIndex - 1; idx <= centerIndex + 1; idx++) {
+        const tile = generateTileGreeters(idx);
+        for (const g of [tile.left, tile.right, tile.farLeft, tile.farRight]) {
+          if (!g || Math.abs(g.x) > REACT_MAX_LATERAL) continue;
+          const rel = -REACT_AHEAD;
+          const before = prev - idx * TILE_LENGTH + g.z;
+          const now = distance - idx * TILE_LENGTH + g.z;
+          if (before < rel && now >= rel && reactsToGreeter(idx, g)) {
+            reactTime.current = 0;
+            lastReactAt.current = t;
+            break search;
+          }
+        }
+      }
+    }
+
+    // Brazos arriba (raise) y un saltito (jumpY): 0→1→0 suave, encima de la
+    // caminata — que NO se detiene: piernas y avance siguen igual.
+    let raise = 0;
+    let jumpY = 0;
+    if (reactTime.current >= 0) {
+      reactTime.current += delta;
+      const u = reactTime.current / REACT_DURATION;
+      if (u >= 1) {
+        reactTime.current = -1;
+      } else {
+        raise = smooth(u, 0, 0.2) * (1 - smooth(u, 0.78, 1));
+        const ju = clamp((u - 0.17) / 0.56, 0, 1);
+        jumpY = Math.sin(ju * Math.PI) * 0.16;
+      }
+    }
+
     if (rootRef.current) {
       rootRef.current.rotation.z = Math.sin(phase) * 0.025 * intensity;
     }
@@ -67,18 +132,29 @@ export function Person() {
     if (hipsRef.current) {
       const walkBob = Math.abs(Math.sin(phase)) * 0.05 * intensity;
       const idleBreath = Math.sin(t * 0.8) * 0.012 * (1 - intensity * 0.5);
-      hipsRef.current.position.y = HIP_HEIGHT + walkBob + idleBreath;
+      hipsRef.current.position.y = HIP_HEIGHT + walkBob + idleBreath + jumpY;
     }
 
-    if (legLeftRef.current) legLeftRef.current.rotation.x = Math.sin(phase) * LEG_SWING * intensity;
-    if (legRightRef.current) legRightRef.current.rotation.x = Math.sin(phase + Math.PI) * LEG_SWING * intensity;
-    if (armLeftRef.current) armLeftRef.current.rotation.x = Math.sin(phase + Math.PI) * ARM_SWING * intensity;
-    if (armRightRef.current) armRightRef.current.rotation.x = Math.sin(phase) * ARM_SWING * intensity;
+    // En el aire las piernas suavizan su vaivén (sin quedarse rígidas).
+    const legAmp = LEG_SWING * intensity * (jumpY > 0.01 ? 0.55 : 1);
+    if (legLeftRef.current) legLeftRef.current.rotation.x = Math.sin(phase) * legAmp;
+    if (legRightRef.current) legRightRef.current.rotation.x = Math.sin(phase + Math.PI) * legAmp;
+    // Con la reacción, el vaivén de los brazos se funde a cero y suben por
+    // los costados hasta arriba (rotación en Z), con un leve aleteo alegre.
+    const armFlutter = Math.sin(t * 15) * 0.09 * raise;
+    if (armLeftRef.current) {
+      armLeftRef.current.rotation.x = Math.sin(phase + Math.PI) * ARM_SWING * intensity * (1 - raise);
+      armLeftRef.current.rotation.z = raise * 2.75 + armFlutter;
+    }
+    if (armRightRef.current) {
+      armRightRef.current.rotation.x = Math.sin(phase) * ARM_SWING * intensity * (1 - raise);
+      armRightRef.current.rotation.z = -raise * 2.75 - armFlutter;
+    }
 
     if (headRef.current) {
       // Mirada/curiosidad permanente, más un leve asentimiento al caminar.
       headRef.current.rotation.y = Math.sin(t * 0.35) * 0.13;
-      headRef.current.rotation.x = 0.04 + Math.sin(phase * 0.5) * 0.02 * intensity;
+      headRef.current.rotation.x = 0.04 + Math.sin(phase * 0.5) * 0.02 * intensity - 0.12 * raise;
     }
 
     // La coleta cuelga hacia atrás y acompaña el paso: rebota al doble de la

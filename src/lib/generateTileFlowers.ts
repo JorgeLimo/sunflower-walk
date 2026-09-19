@@ -81,7 +81,7 @@ const BAND_DEFS: Record<SunflowerTier, Band> = {
     scaleMax: 0.45,
     heightMin: 0.4,
     heightMax: 0.54,
-    minDist: 0.54,
+    minDist: 0.38,
   },
   mid: {
     xMin: ROAD_WIDTH / 2 + 2.6,
@@ -90,7 +90,7 @@ const BAND_DEFS: Record<SunflowerTier, Band> = {
     scaleMax: 0.38,
     heightMin: 0.34,
     heightMax: 0.48,
-    minDist: 0.41,
+    minDist: 0.31,
   },
   background: {
     xMin: ROAD_WIDTH / 2 + 17,
@@ -99,7 +99,7 @@ const BAND_DEFS: Record<SunflowerTier, Band> = {
     scaleMax: 0.3,
     heightMin: 0.26,
     heightMax: 0.4,
-    minDist: 0.29,
+    minDist: 0.24,
   },
 };
 
@@ -124,7 +124,7 @@ export function computeVariantCounts(counts: SunflowerTierCounts): Record<Sunflo
 
 /** Fracción de plantas que se colocan sueltas, ignorando los clusters por
  * completo — girasoles completamente aislados en medio del césped. */
-const ISOLATED_RATIO = 0.26;
+const ISOLATED_RATIO = 0.36;
 
 /**
  * Distribuye `count` girasoles de una franja en un tile reutilizando
@@ -150,7 +150,9 @@ function fillFlowers(
     grid,
     worldZBase,
     ISOLATED_RATIO,
-    (worldZ) => fieldDensityAt(worldZ),
+    // Piso alto: casi sin tramos "flojos", para que no queden parches
+    // grandes de césped pelado entre manchones.
+    (worldZ) => fieldDensityAt(worldZ, 0.92),
     (x, z) => {
       out.push({
         x,

@@ -33,8 +33,11 @@
   border-radius: 16px;
   background: rgba(251, 243, 227, 0.96);
   color: $ink;
-  font-family: $font-display;
-  font-size: 0.82rem;
+  // Misma tipografía que el texto de los carteles de las personitas
+  // (`greeterSignTexture.ts`): sans-serif redondeada y firme.
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
   line-height: 1.25;
   text-align: center;
   box-shadow: 0 6px 16px rgba(74, 63, 53, 0.2);

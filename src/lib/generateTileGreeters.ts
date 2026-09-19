@@ -90,7 +90,7 @@ const SPAWN_CHANCE = 0.78;
 // extiende bastante más allá del tallo) todavía alcanzaba a rozar la
 // esquina del cartel — este margen extra le da lugar a la hoja sin que el
 // círculo se note como un claro artificial en el pasto.
-const GREETER_EXCLUSION_RADIUS = 2.4;
+const GREETER_EXCLUSION_RADIUS = 1.9;
 
 // El cartel mira "hacia el camino" (perpendicular, ±90°) por defecto, pero
 // la protagonista lo ve casi siempre desde ADELANTE (el mundo se desliza

@@ -26,6 +26,12 @@ function loadStoredVolume(): number {
 }
 const CROSSFADE_MS = 1600;
 
+/** `HTMLMediaElement.volume` lanza `IndexSizeError` fuera de [0, 1] — y un
+ * seno/coseno con un `p` apenas fuera de rango (o el resto de punto
+ * flotante de `cos(π/2)`) puede dar -0.0007 — así que TODO volumen que se
+ * asigna pasa por acá. */
+const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
+
 /** Prueba `audio-music-N.mp3` en orden hasta el primero que no exista. El
  * servidor de desarrollo responde con el index.html (text/html) a rutas
  * inexistentes, así que además del status se mira el tipo de contenido. */
@@ -82,7 +88,7 @@ export function BackgroundMusic({ children }: BackgroundMusicProps) {
 
   const setVolume = useCallback(
     (next: number) => {
-      const v = Math.min(1, Math.max(0, next));
+      const v = clamp01(next);
       volumeRef.current = v;
       setVolumeState(v);
       // Durante un fundido cruzado los dos elementos los maneja `step`.
@@ -138,12 +144,15 @@ export function BackgroundMusic({ children }: BackgroundMusicProps) {
         fadingOutRef.current = outgoing;
         const t0 = performance.now();
         const step = (now: number) => {
-          const p = Math.min((now - t0) / CROSSFADE_MS, 1);
+          // `now` (marca de tiempo del cuadro) puede ser anterior a `t0`, que se
+          // toma con `performance.now()` ya empezado el cuadro: sin acotar,
+          // `p` daba negativo y el volumen también.
+          const p = clamp01((now - t0) / CROSSFADE_MS);
           // Curva de potencia constante aproximada: la suma de volúmenes
           // se mantiene pareja a lo largo del fundido.
-          const master = volumeRef.current;
-          incoming.volume = master * Math.sin((p * Math.PI) / 2);
-          outgoing.volume = master * Math.cos((p * Math.PI) / 2);
+          const master = clamp01(volumeRef.current);
+          incoming.volume = clamp01(master * Math.sin((p * Math.PI) / 2));
+          outgoing.volume = clamp01(master * Math.cos((p * Math.PI) / 2));
           if (p < 1) {
             requestAnimationFrame(step);
             return;
