@@ -13,17 +13,8 @@ const TRACK_SRC = trackUrl(0);
 // Tope de seguridad al buscar `audio-music-1.mp3`, `-2.mp3`, ... — la
 // secuencia se arma sola con los archivos que existan en `public/audio`.
 const MAX_TRACKS = 30;
-const VOLUME_STORAGE_KEY = 'sunflower-walk:volume';
-
-function loadStoredVolume(): number {
-  try {
-    const raw = window.localStorage.getItem(VOLUME_STORAGE_KEY);
-    const value = raw === null ? NaN : Number(raw);
-    return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1;
-  } catch {
-    return 1;
-  }
-}
+// La música siempre arranca al 50%; el usuario lo ajusta con `VolumeControl`.
+const INITIAL_VOLUME = 0.5;
 const CROSSFADE_MS = 1600;
 
 /** `HTMLMediaElement.volume` lanza `IndexSizeError` fuera de [0, 1] — y un
@@ -65,7 +56,7 @@ export function BackgroundMusic({ children }: BackgroundMusicProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [muted, setMuted] = useState(false);
   const [trackCount, setTrackCount] = useState(1);
-  const [volume, setVolumeState] = useState(loadStoredVolume);
+  const [volume, setVolumeState] = useState(INITIAL_VOLUME);
   // Volumen "maestro": el fundido cruzado lo lee en cada cuadro, así que
   // moverlo durante un cambio de canción se aplica al instante y el
   // volumen elegido se mantiene en la canción nueva.
@@ -93,11 +84,6 @@ export function BackgroundMusic({ children }: BackgroundMusicProps) {
       setVolumeState(v);
       // Durante un fundido cruzado los dos elementos los maneja `step`.
       if (!switchingRef.current && audioRef.current) audioRef.current.volume = v;
-      try {
-        window.localStorage.setItem(VOLUME_STORAGE_KEY, String(v));
-      } catch {
-        // Sin almacenamiento: el volumen igual funciona en esta sesión.
-      }
     },
     [audioRef],
   );

@@ -9,39 +9,35 @@
   align-items: center;
   justify-content: center;
   gap: 2.2rem;
-  background: radial-gradient(circle at 50% 40%, #fff6e0 0%, $paper 70%);
+  overflow: hidden;
+  // Degradado cálido con viñeta suave hacia los bordes.
+  background:
+    radial-gradient(ellipse at 50% 46%, #fff8e6 0%, rgba(255, 246, 224, 0) 62%),
+    radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(226, 190, 140, 0.32) 100%),
+    linear-gradient(180deg, #fdf3dc 0%, #f8e8c8 100%);
 }
 
-.heading {
+.content {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.9rem;
+  gap: 2.2rem;
   padding: 0 1.5rem;
-}
-
-.title {
-  font-family: $font-display;
-  font-weight: 400;
-  font-size: clamp(1.4rem, 3.5vw, 2rem);
-  color: $ink;
-  letter-spacing: 0.02em;
-  opacity: 0.85;
-  text-align: center;
-  margin: 0;
 }
 
 .hint {
   font-family: $font-display;
   font-weight: 400;
-  font-size: clamp(0.85rem, 2.2vw, 1rem);
+  font-size: clamp(1.05rem, 2.8vw, 1.35rem);
   line-height: 1.6;
   color: $ink;
   letter-spacing: 0.02em;
-  opacity: 0.55;
+  opacity: 0.78;
   text-align: center;
   margin: 0;
-  max-width: 32rem;
+  max-width: 30rem;
 }
 
 .enterButton {
@@ -61,5 +57,217 @@
     background: $ink;
     color: $paper;
     transform: translateY(-2px);
+  }
+}
+
+// Indicación discreta del gesto, debajo del botón.
+.swipe {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: -0.6rem;
+  color: $ink;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.swipeIcon {
+  overflow: visible;
+}
+
+.swipeLabel {
+  font-family: $font-display;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hand {
+  animation: swipe-up 2.4s $ease-soft infinite;
+}
+.chevrons {
+  animation: chevrons-fade 2.4s $ease-soft infinite;
+}
+
+@keyframes swipe-up {
+  0% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-9px);
+    opacity: 0;
+  }
+}
+
+@keyframes chevrons-fade {
+  0%,
+  20% {
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hand,
+  .chevrons {
+    animation: none;
+  }
+}
+
+// ---- Fondo abstracto ----
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(120vmin, 900px);
+  height: min(120vmin, 900px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 200, 120, 0.3) 0%, rgba(255, 200, 120, 0.1) 40%, rgba(255, 200, 120, 0) 70%);
+  animation: glow-breathe 9s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.rings {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(92vmin, 680px);
+  height: min(92vmin, 680px);
+  transform: translate(-50%, -50%);
+  color: $ink;
+  opacity: 0.3;
+  pointer-events: none;
+
+  g {
+    transform-origin: 300px 300px;
+  }
+}
+.ringSlow {
+  animation: spin 180s linear infinite;
+}
+.ringReverse {
+  animation: spin 120s linear infinite reverse;
+}
+.orbit {
+  animation: spin 70s linear infinite;
+}
+
+.motes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  span {
+    position: absolute;
+    bottom: -10px;
+    border-radius: 50%;
+    background: rgba(255, 190, 110, 0.75);
+    box-shadow: 0 0 8px rgba(255, 190, 110, 0.6);
+    opacity: 0;
+    animation: mote-rise linear infinite;
+  }
+}
+
+// Marcas de encuadre, como las de un visor de cámara.
+.corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 0 solid rgba(74, 63, 53, 0.28);
+  pointer-events: none;
+
+  &[data-pos='tl'] {
+    top: 22px;
+    left: 22px;
+    border-top-width: 1px;
+    border-left-width: 1px;
+  }
+  &[data-pos='tr'] {
+    top: 22px;
+    right: 22px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+  }
+  &[data-pos='bl'] {
+    bottom: 22px;
+    left: 22px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+  }
+  &[data-pos='br'] {
+    right: 22px;
+    bottom: 22px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+  }
+}
+
+// Grano de película casi imperceptible.
+.grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.07;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.29  0 0 0 0 0.25  0 0 0 0 0.21  0 0 0 0.9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes glow-breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+}
+
+@keyframes mote-rise {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  85% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-105vh) translateX(18px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow,
+  .ringSlow,
+  .ringReverse,
+  .orbit,
+  .motes span {
+    animation: none;
   }
 }
