@@ -4,6 +4,7 @@ import { BackgroundMusic, MusicToggleButton, VolumeControl } from './components/
 import { SongBubbleDirector } from './components/audio/SongBubbleDirector';
 import { IntroScreen } from './components/intro/IntroScreen';
 import { StoryController } from './components/story/StoryController';
+import { markExperienceStarted } from './lib/experienceStore';
 
 function App() {
   const [hasEntered, setHasEntered] = useState(false);
@@ -19,7 +20,10 @@ function App() {
         </>
       )}
       <AnimatePresence>
-        {!hasEntered && <IntroScreen onEnter={() => setHasEntered(true)} />}
+        {!hasEntered && <IntroScreen onEnter={() => {
+          markExperienceStarted();
+          setHasEntered(true);
+        }} />}
       </AnimatePresence>
     </BackgroundMusic>
   );

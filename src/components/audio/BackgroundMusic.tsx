@@ -13,8 +13,10 @@ const TRACK_SRC = trackUrl(0);
 // Tope de seguridad al buscar `audio-music-1.mp3`, `-2.mp3`, ... — la
 // secuencia se arma sola con los archivos que existan en `public/audio`.
 const MAX_TRACKS = 30;
-// La música siempre arranca al 50%; el usuario lo ajusta con `VolumeControl`.
-const INITIAL_VOLUME = 0.5;
+// La música arranca al 35% en cada experiencia nueva; el usuario lo ajusta
+// con `VolumeControl` y esa elección se conserva hasta que termine la sesión
+// (este valor solo es el punto de partida, nunca se reaplica).
+const INITIAL_VOLUME = 0.35;
 const CROSSFADE_MS = 1600;
 
 /** `HTMLMediaElement.volume` lanza `IndexSizeError` fuera de [0, 1] — y un

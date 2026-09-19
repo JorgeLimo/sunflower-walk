@@ -19,6 +19,7 @@ import { Greeters } from './Greeters';
 import { Person } from './Person';
 import { Pug } from './Pug';
 import { Cat } from './Cat';
+import { Airplane } from './Airplane';
 import { CameraController } from './CameraController';
 import { ScrollPhysics } from '../story/ScrollPhysics';
 import { useViewportTier, TIER_SETTINGS } from '../../lib/viewport';
@@ -60,6 +61,7 @@ export function World() {
       <Person />
       <Pug />
       <Cat />
+      <Airplane />
       <CameraController tier={tier} />
 
       {settings.enableBloom && (
