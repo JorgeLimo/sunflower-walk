@@ -6,6 +6,7 @@ import { CHARACTER_Z } from '../../lib/walk';
 import { colors } from '../../lib/colors';
 import { damp, clamp, createSeededRandom, randomBetween } from '../../lib/random';
 import { PUG_SIDE_OFFSET, VELOCITY_FOR_FULL_WALK } from '../../lib/constants';
+import { SongBubble } from './SongBubble';
 
 // Ritmo natural del trote, igual que WALK_FREQ en Person.tsx (ver su
 // comentario): el avance real más rápido sale de `VELOCITY_FOR_FULL_WALK`,
@@ -116,7 +117,7 @@ export function Pug() {
         } else {
           behaviorTimeLeft.current = randomBetween(random, 4, 7);
         }
-      } else if (behavior.current === 'catchingUp') {
+      } else if (behavior.current === 'catchingUp' || behavior.current === 'wearingHat') {
         behavior.current = 'walking';
         behaviorTimeLeft.current = randomBetween(random, 4, 7);
       } else {
@@ -126,12 +127,14 @@ export function Pug() {
       behaviorDuration.current = behaviorTimeLeft.current;
     }
 
+    // `wearingHat` NO cuenta como pausa: el sombrero es una acción extra
+    // encima de la caminata (las patas, el cuerpo y el avance siguen
+    // igual), así que el animal no se "arrastra" con el mundo en movimiento.
     const isPaused =
       behavior.current === 'sniffing' ||
       behavior.current === 'lookingAside' ||
       behavior.current === 'lookingAtWoman' ||
       behavior.current === 'happyHop' ||
-      behavior.current === 'wearingHat' ||
       behavior.current === 'playingGuitar';
     const behaviorSpeedFactor = behavior.current === 'catchingUp' ? 1.8 : isPaused ? 0.15 : 1;
 
@@ -326,6 +329,7 @@ export function Pug() {
           <meshStandardMaterial color={colors.pugBodyShadow} roughness={0.9} />
         </mesh>
       </group>
+      <SongBubble animal="pug" position={[0, 0.42, 0.05]} />
       <group ref={legBRRef} position={[-0.1, -0.1, -0.16]}>
         <mesh position={[0, -0.09, 0]} castShadow>
           <capsuleGeometry args={[0.035, 0.16, 4, 6]} />

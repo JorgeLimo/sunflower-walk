@@ -6,6 +6,7 @@ import { CHARACTER_Z } from '../../lib/walk';
 import { colors } from '../../lib/colors';
 import { damp, clamp, createSeededRandom, randomBetween } from '../../lib/random';
 import { CAT_SIDE_OFFSET, VELOCITY_FOR_FULL_WALK } from '../../lib/constants';
+import { SongBubble } from './SongBubble';
 
 // Paso más corto y ligero que el trote del Pug, y de paso evita que ambos
 // animales se muevan sincronizados. Ritmo natural, igual que WALK_FREQ en
@@ -124,7 +125,7 @@ export function Cat() {
         } else {
           behaviorTimeLeft.current = randomBetween(random, 4, 7);
         }
-      } else if (behavior.current === 'trotting') {
+      } else if (behavior.current === 'trotting' || behavior.current === 'wearingHat') {
         behavior.current = 'walking';
         behaviorTimeLeft.current = randomBetween(random, 4, 7);
       } else {
@@ -135,12 +136,14 @@ export function Cat() {
       behaviorDuration.current = behaviorTimeLeft.current;
     }
 
+    // `wearingHat` NO cuenta como pausa: el sombrero es una acción extra
+    // encima de la caminata (las patas, el cuerpo y el avance siguen
+    // igual), así que el animal no se "arrastra" con el mundo en movimiento.
     const isPaused =
       behavior.current === 'watchingFlowers' ||
       behavior.current === 'sniffing' ||
       behavior.current === 'lookingAtWoman' ||
       behavior.current === 'happyHop' ||
-      behavior.current === 'wearingHat' ||
       behavior.current === 'playingGuitar';
     const behaviorSpeedFactor = behavior.current === 'trotting' ? 1.7 : isPaused ? 0.12 : 1;
 
@@ -251,6 +254,7 @@ export function Cat() {
 
   return (
     <group ref={rootRef} position={[CAT_SIDE_OFFSET, 0.2, CHARACTER_Z + 0.4]} rotation={[0, Math.PI, 0]}>
+      <SongBubble animal="cat" position={[0, 0.4, 0.05]} />
       <group ref={bodyRef}>
         {/* Tronco alargado y bajo: la proporción felina, lejos de la bola */}
         <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
