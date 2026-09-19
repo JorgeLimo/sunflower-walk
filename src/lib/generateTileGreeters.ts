@@ -34,6 +34,9 @@ export interface TileGreeters {
    * espectadores ocasionales entre las flores, no solo pegados al camino. */
   farLeft: GreeterLocal | null;
   farRight: GreeterLocal | null;
+  /** Tercera posición, todavía más adentro del campo (ver `WIDE_BAND`). */
+  wideLeft: GreeterLocal | null;
+  wideRight: GreeterLocal | null;
 }
 
 // Antes las 5 poses se elegían con la misma probabilidad, lo que dejaba
@@ -75,7 +78,7 @@ function pickPose(random: () => number): GreeterPose {
 // como un pequeño grupo cercano) sin necesidad de un generador de "grupos"
 // aparte — la variedad de separación pedida sale sola de que cada lado y
 // cada tile se deciden por separado.
-const SPAWN_CHANCE = 0.75;
+const SPAWN_CHANCE = 0.78;
 
 // Radio (unidades de mundo) que las flores/vegetación deben dejar libre
 // alrededor de cada personita — ver `greeterExclusionZonesForTile` más
@@ -87,7 +90,7 @@ const SPAWN_CHANCE = 0.75;
 // extiende bastante más allá del tallo) todavía alcanzaba a rozar la
 // esquina del cartel — este margen extra le da lugar a la hoja sin que el
 // círculo se note como un claro artificial en el pasto.
-const GREETER_EXCLUSION_RADIUS = 2.1;
+const GREETER_EXCLUSION_RADIUS = 2.4;
 
 // El cartel mira "hacia el camino" (perpendicular, ±90°) por defecto, pero
 // la protagonista lo ve casi siempre desde ADELANTE (el mundo se desliza
@@ -98,14 +101,14 @@ const GREETER_EXCLUSION_RADIUS = 2.1;
 // dirección de acercamiento, como si la persona lo hubiera ladeado a
 // propósito para mostrarlo a quien se aproxima — de perfil nunca, de frente
 // exacto tampoco, legible durante todo el tramo en el que se lo ve.
-const SIGN_YAW_BIAS = 0.62;
+const SIGN_YAW_BIAS = 0.8;
 
 // Segunda tirada, independiente de la de arriba, para una personita "de
 // fondo" más adentro del campo — a pedido explícito de que no todas queden
 // pegadas al borde del camino, algunas como espectadoras entre las flores.
 // Chance más baja que `SPAWN_CHANCE`: es un extra ocasional, no una segunda
 // fila pareja (eso sí se sentiría como multitud).
-const FAR_SPAWN_CHANCE = 0.34;
+const FAR_SPAWN_CHANCE = 0.4;
 const FAR_BAND_MIN = ROAD_WIDTH / 2 + 1.8;
 const FAR_BAND_MAX = ROAD_WIDTH / 2 + 3.4;
 
@@ -122,6 +125,21 @@ interface SideBand {
 
 const NEAR_BAND: SideBand = { spawnChance: SPAWN_CHANCE, xMin: ROAD_WIDTH / 2 + 0.45, xMax: ROAD_WIDTH / 2 + 1.15, seedOffset: 0 };
 const FAR_BAND: SideBand = { spawnChance: FAR_SPAWN_CHANCE, xMin: FAR_BAND_MIN, xMax: FAR_BAND_MAX, seedOffset: 104729 };
+// Tercera franja, bien adentro del campo: algunas personitas/carteles
+// lejos del borde (espectadoras entre las flores) para llenar los laterales
+// que se sentían vacíos, sin formar una fila junto al camino.
+const WIDE_BAND: SideBand = {
+  spawnChance: 0.24,
+  xMin: ROAD_WIDTH / 2 + 3.7,
+  xMax: ROAD_WIDTH / 2 + 7,
+  seedOffset: 209459,
+};
+/** En orden de prioridad: si dos personitas quedan demasiado cerca, se
+ * queda la de la franja más cercana al camino. */
+const BANDS: SideBand[] = [NEAR_BAND, FAR_BAND, WIDE_BAND];
+/** Separación mínima entre dos personitas del mismo lado (unidades): el
+ * cartel de una nunca tapa ni se cruza con la de al lado. */
+const MIN_GREETER_SPACING = 3.6;
 
 function generateSideGreeter(index: number, side: -1 | 1, band: SideBand): GreeterLocal | null {
   // Semillas separadas por lado (y siempre distintas entre sí) para que
@@ -160,21 +178,86 @@ function generateSideGreeter(index: number, side: -1 | 1, band: SideBand): Greet
   return { x, z, rotationY, signYaw, pose, phraseIndex, outfitIndex, faceIndex, hairIndex, heightScale, phase };
 }
 
+interface RawCandidate {
+  band: number;
+  side: -1 | 1;
+  greeter: GreeterLocal;
+}
+
+const rawCache = new Map<number, RawCandidate[]>();
+const tileCache = new Map<number, TileGreeters>();
+const CACHE_LIMIT = 256;
+
+/** Todas las candidatas de un tile, sin filtrar por cercanía. */
+function rawCandidates(index: number): RawCandidate[] {
+  const cached = rawCache.get(index);
+  if (cached) return cached;
+  const out: RawCandidate[] = [];
+  BANDS.forEach((band, bandIndex) => {
+    for (const side of [-1, 1] as const) {
+      const greeter = generateSideGreeter(index, side, band);
+      if (greeter) out.push({ band: bandIndex, side, greeter });
+    }
+  });
+  if (rawCache.size > CACHE_LIMIT) rawCache.clear();
+  rawCache.set(index, out);
+  return out;
+}
+
+/** ¿Hay otra candidata con prioridad (franja más cercana al camino, o el
+ * tile de menor índice si son de la misma franja) demasiado cerca? Revisa
+ * también los tiles vecinos, para que dos personitas a ambos lados de una
+ * costura no se pisen. Es simétrico: nunca se descartan las dos a la vez. */
+function isCrowded(index: number, c: RawCandidate): boolean {
+  const minSq = MIN_GREETER_SPACING * MIN_GREETER_SPACING;
+  for (const di of [-1, 0, 1]) {
+    const otherIndex = index + di;
+    const zShift = -di * TILE_LENGTH;
+    for (const o of rawCandidates(otherIndex)) {
+      if (o.side !== c.side) continue;
+      if (di === 0 && o.band === c.band) continue;
+      const hasPriority = o.band < c.band || (o.band === c.band && otherIndex < index);
+      if (!hasPriority) continue;
+      const dx = o.greeter.x - c.greeter.x;
+      const dz = o.greeter.z + zShift - c.greeter.z;
+      if (dx * dx + dz * dz < minSq) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Genera (determinísticamente, a partir de `index`) las personitas que le
- * corresponden al tile `index`: hasta una cercana y una lejana por lado,
- * cada una decidida de forma independiente. Mismo patrón que el resto de
- * los generadores por-tile (girasoles, lirios, tulipanes): la llamada es
+ * corresponden al tile `index`: hasta una cercana, una lejana y una "de
+ * fondo" por lado, cada una decidida de forma independiente y descartada si
+ * queda demasiado cerca de otra. Mismo patrón que el resto de los
+ * generadores por-tile (girasoles, lirios, tulipanes): la llamada es
  * puramente función de `index`, así que recalcularla siempre da el mismo
- * resultado.
+ * resultado (por eso se puede cachear).
  */
 export function generateTileGreeters(index: number): TileGreeters {
-  return {
-    left: generateSideGreeter(index, -1, NEAR_BAND),
-    right: generateSideGreeter(index, 1, NEAR_BAND),
-    farLeft: generateSideGreeter(index, -1, FAR_BAND),
-    farRight: generateSideGreeter(index, 1, FAR_BAND),
+  const cached = tileCache.get(index);
+  if (cached) return cached;
+  const result: TileGreeters = {
+    left: null,
+    right: null,
+    farLeft: null,
+    farRight: null,
+    wideLeft: null,
+    wideRight: null,
   };
+  const keys = [
+    ['left', 'right'],
+    ['farLeft', 'farRight'],
+    ['wideLeft', 'wideRight'],
+  ] as const;
+  for (const c of rawCandidates(index)) {
+    if (isCrowded(index, c)) continue;
+    result[keys[c.band][c.side < 0 ? 0 : 1]] = c.greeter;
+  }
+  if (tileCache.size > CACHE_LIMIT) tileCache.clear();
+  tileCache.set(index, result);
+  return result;
 }
 
 /**
@@ -194,16 +277,15 @@ export function greeterExclusionZonesForTile(index: number): ExclusionZone[] {
   // esto, esa flor nunca se enteraba de que había alguien ahí y seguía
   // atravesando el cartel exactamente como antes de este arreglo.
   for (const offset of [-1, 0, 1]) {
-    const { left, right, farLeft, farRight } = generateTileGreeters(index + offset);
+    const tile = generateTileGreeters(index + offset);
     // `tileRenderZ` ubica el tile `index` en `... - index*TILE_LENGTH`, así
     // que un punto local `z` en el tile vecino `index+offset` cae, en el
     // sistema de coordenadas LOCAL del tile `index`, en `z - offset*
     // TILE_LENGTH` (no `+`): el signo va invertido respecto del offset.
     const zShift = -offset * TILE_LENGTH;
-    if (left) zones.push({ x: left.x, z: left.z + zShift, radius: GREETER_EXCLUSION_RADIUS });
-    if (right) zones.push({ x: right.x, z: right.z + zShift, radius: GREETER_EXCLUSION_RADIUS });
-    if (farLeft) zones.push({ x: farLeft.x, z: farLeft.z + zShift, radius: GREETER_EXCLUSION_RADIUS });
-    if (farRight) zones.push({ x: farRight.x, z: farRight.z + zShift, radius: GREETER_EXCLUSION_RADIUS });
+    for (const g of [tile.left, tile.right, tile.farLeft, tile.farRight, tile.wideLeft, tile.wideRight]) {
+      if (g) zones.push({ x: g.x, z: g.z + zShift, radius: GREETER_EXCLUSION_RADIUS });
+    }
   }
   return zones;
 }

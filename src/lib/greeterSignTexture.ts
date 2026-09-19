@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { colors } from './colors';
 import { GREETER_PHRASES } from './greeterContent';
 
-const SIGN_TEXTURE_W = 480;
-const SIGN_TEXTURE_H = 320;
+const SIGN_TEXTURE_W = 768;
+const SIGN_TEXTURE_H = 512;
 
 function roundedRectPath(
   ctx: CanvasRenderingContext2D,
@@ -65,29 +65,31 @@ function createSignTexture(text: string): THREE.CanvasTexture {
   // Marco de madera cálida por fuera, tabla clara por dentro — diseño
   // sencillo de dos capas, coherente con el resto del mundo (mismos tonos
   // que el borde del camino y el papel/tinta ya usados en otras partes).
-  const margin = 10;
+  const margin = 6;
   ctx.fillStyle = colors.roadEdge;
-  roundedRectPath(ctx, margin, margin, w - margin * 2, h - margin * 2, 34);
+  roundedRectPath(ctx, margin, margin, w - margin * 2, h - margin * 2, 48);
   ctx.fill();
 
-  const inner = margin + 16;
-  ctx.fillStyle = colors.paper;
-  roundedRectPath(ctx, inner, inner, w - inner * 2, h - inner * 2, 24);
+  const inner = margin + 14;
+  // Tabla más clara y tinta más oscura que la del resto del mundo: el
+  // contraste manda cuando el cartel se ve chiquito.
+  ctx.fillStyle = '#fffaf0';
+  roundedRectPath(ctx, inner, inner, w - inner * 2, h - inner * 2, 34);
   ctx.fill();
 
-  ctx.fillStyle = colors.ink;
+  ctx.fillStyle = '#2a211a';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  const maxTextWidth = w - inner * 2 - 36;
-  const maxTextHeight = h - inner * 2 - 24;
-  let fontSize = 64;
+  const maxTextWidth = w - inner * 2 - 24;
+  const maxTextHeight = h - inner * 2 - 16;
+  let fontSize = 132;
   let lines: string[] = [];
   let lineHeight = 0;
-  while (fontSize > 28) {
-    ctx.font = `700 ${fontSize}px "Segoe UI", system-ui, sans-serif`;
+  while (fontSize > 44) {
+    ctx.font = `800 ${fontSize}px "Segoe UI", system-ui, sans-serif`;
     lines = wrapLines(ctx, text, maxTextWidth);
-    lineHeight = fontSize * 1.2;
+    lineHeight = fontSize * 1.12;
     if (lines.length * lineHeight <= maxTextHeight) break;
     fontSize -= 4;
   }
@@ -97,7 +99,10 @@ function createSignTexture(text: string): THREE.CanvasTexture {
     ctx.fillText(line, w / 2, startY + i * lineHeight);
   });
 
-  return new THREE.CanvasTexture(canvas);
+  const texture = new THREE.CanvasTexture(canvas);
+  // Vista de lado y de lejos: sin anisotropía el texto se empasta.
+  texture.anisotropy = 8;
+  return texture;
 }
 
 /** Una textura precomputada por frase (hay 15), compartida por todas las

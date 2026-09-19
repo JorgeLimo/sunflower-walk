@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { colors } from '../../lib/colors';
@@ -147,6 +147,20 @@ export interface GreeterFigureHandle {
   apply: (local: GreeterLocal | null) => void;
 }
 
+interface GreeterFigureProps {
+  /** Multiplicador de tamaño de la personita entera (1 = escritorio). */
+  figureBoost?: number;
+  /** Multiplicador extra SOLO del cartel (1 = escritorio): en pantallas
+   * chicas el mensaje tiene que poder leerse a media distancia. */
+  signBoost?: number;
+}
+
+// Borde superior máximo (en unidades locales de la figura) que puede
+// alcanzar un cartel agrandado: por encima queda la barbilla, así que el
+// cartel se baja en vez de subir cuando crece — nunca toca la cabeza.
+const SIGN_TOP_LIMIT = 0.66;
+const SIGN_HALF_HEIGHT = SIGN_HEIGHT / 2 + 0.0225;
+
 /**
  * Una personita motivadora: geometría orgánica (torso tallado, cuello,
  * manos y pies propios, muchos más segmentos que antes en piernas/brazos/
@@ -163,7 +177,7 @@ export interface GreeterFigureHandle {
  * nunca se acerque ni se aleje de la cabeza mientras el resto del cuerpo
  * (brazos, piernas, torso) sigue animándose con total libertad.
  */
-export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
+export const GreeterFigure = forwardRef<GreeterFigureHandle, GreeterFigureProps>(({ figureBoost = 1, signBoost = 1 }, ref) => {
   const groupRef = useRef<THREE.Group>(null);
   const armLeftRef = useRef<THREE.Group>(null);
   const armRightRef = useRef<THREE.Group>(null);
@@ -172,6 +186,11 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
   const headRef = useRef<THREE.Group>(null);
   const signGroupRef = useRef<THREE.Group>(null);
   const signGlowRef = useRef<THREE.SpriteMaterial>(null);
+
+  const boostRef = useRef({ figure: figureBoost, sign: signBoost });
+  useEffect(() => {
+    boostRef.current = { figure: figureBoost, sign: signBoost };
+  }, [figureBoost, signBoost]);
 
   const poseRef = useRef<{ pose: GreeterPose; cfg: PoseConfig; phase: number; rotationY: number; heightScale: number } | null>(
     null,
@@ -212,7 +231,7 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
         group.visible = true;
         group.position.set(local.x, 0, local.z);
         group.rotation.set(0, local.rotationY, cfg.lean);
-        group.scale.setScalar(FIGURE_SCALE * local.heightScale);
+        group.scale.setScalar(FIGURE_SCALE * boostRef.current.figure * local.heightScale);
       }
 
       const outfit = colors.greeterOutfits[local.outfitIndex];
@@ -228,7 +247,13 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
       signMaterial.needsUpdate = true;
 
       if (signGroupRef.current) {
-        signGroupRef.current.position.set(...cfg.signPosition);
+        const signScale = boostRef.current.sign;
+        signGroupRef.current.scale.setScalar(signScale);
+        const [sx, sy, sz] = cfg.signPosition;
+        // Agrandado, el cartel baja para que su borde superior nunca llegue
+        // a la cabeza (ver `SIGN_TOP_LIMIT`); a escala 1 queda como siempre.
+        const y = signScale > 1 ? Math.min(sy, SIGN_TOP_LIMIT - SIGN_HALF_HEIGHT * signScale) : sy;
+        signGroupRef.current.position.set(sx, y, sz);
         // El pitch (x) lo fija la pose (cuánto se inclina hacia la cámara,
         // que suele estar más alta que el cartel); el yaw (y) es el sesgo
         // hacia la dirección de acercamiento calculado en
@@ -373,7 +398,8 @@ export const GreeterFigure = forwardRef<GreeterFigureHandle>((_props, ref) => {
     group.rotation.z = cfg.lean + extraLean;
     group.rotation.y = cur.rotationY + extraTurn;
     const h = cur.heightScale;
-    group.scale.set(FIGURE_SCALE * scaleXZ * h, FIGURE_SCALE * scaleY * h, FIGURE_SCALE * scaleXZ * h);
+    const fs = FIGURE_SCALE * boostRef.current.figure;
+    group.scale.set(fs * scaleXZ * h, fs * scaleY * h, fs * scaleXZ * h);
   });
 
   return (
