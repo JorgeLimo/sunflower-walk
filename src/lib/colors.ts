@@ -39,6 +39,9 @@ export const colors = {
   personBlush: '#f0a898',
   // Jean azul casual y zapatillas blancas de la protagonista.
   personJeans: '#4c6f9e',
+  // Moño de mariposa de la coleta.
+  personBow: '#c6a8e6',
+  personBowDark: '#9f7ccb',
   personShoe: '#f7f5ef',
   personSole: '#d8d3c8',
 

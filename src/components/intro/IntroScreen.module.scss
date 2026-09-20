@@ -28,16 +28,19 @@
 }
 
 .hint {
-  font-family: $font-display;
-  font-weight: 400;
-  font-size: clamp(1.05rem, 2.8vw, 1.35rem);
-  line-height: 1.6;
-  color: $ink;
+  // Misma familia que los carteles y las burbujas del recorrido.
+  font-family: $font-sign;
+  font-weight: 600;
+  font-size: clamp(1.2rem, 3.4vw, 1.6rem);
+  line-height: 1.5;
+  color: #3a2d24;
   letter-spacing: 0.02em;
-  opacity: 0.78;
+  opacity: 1;
   text-align: center;
   margin: 0;
-  max-width: 30rem;
+  max-width: 32rem;
+  // Un latido suave para que se note sin gritar.
+  animation: hint-pulse 3.2s $ease-soft infinite;
 }
 
 .enterButton {
@@ -67,8 +70,8 @@
   align-items: center;
   gap: 0.35rem;
   margin-top: -0.6rem;
-  color: $ink;
-  opacity: 0.5;
+  color: #3a2d24;
+  opacity: 0.85;
   pointer-events: none;
 }
 
@@ -77,9 +80,10 @@
 }
 
 .swipeLabel {
-  font-family: $font-display;
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
+  font-family: $font-sign;
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -88,6 +92,18 @@
 }
 .chevrons {
   animation: chevrons-fade 2.4s $ease-soft infinite;
+}
+
+@keyframes hint-pulse {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.86;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
 }
 
 @keyframes swipe-up {
@@ -122,6 +138,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hint,
   .hand,
   .chevrons {
     animation: none;

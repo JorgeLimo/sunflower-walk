@@ -6,6 +6,7 @@ import { CHARACTER_Z } from '../../lib/walk';
 import { colors } from '../../lib/colors';
 import { damp, clamp } from '../../lib/random';
 import { TILE_LENGTH, VELOCITY_FOR_FULL_WALK } from '../../lib/constants';
+import { HelpBubble } from './HelpBubble';
 import { generateTileGreeters, type GreeterLocal } from '../../lib/generateTileGreeters';
 
 // Ritmo natural de la zancada (frecuencia del ciclo de piernas/brazos). Una
@@ -208,6 +209,27 @@ export function Person() {
               <capsuleGeometry args={[0.061, 0.12, 4, 8]} />
               <meshStandardMaterial color={colors.personHair} roughness={0.9} />
             </mesh>
+            {/* Moño de mariposa en la coleta: dos alas grandes arriba, dos chicas
+                abajo y un centro, todo pegado a la base de la coleta (hijo de
+                `ponytailRef`, así que la acompaña al caminar). */}
+            <group position={[0, -0.075, -0.065]} rotation={[0, 0, 0]}>
+              {[1, -1].map((side) => (
+                <group key={side} scale={[side, 1, 1]}>
+                  <mesh position={[0.055, 0.02, 0]} rotation={[0, 0, 0.55]} scale={[1, 0.72, 0.32]} castShadow>
+                    <sphereGeometry args={[0.052, 12, 10]} />
+                    <meshStandardMaterial color={colors.personBow} emissive={colors.personBow} emissiveIntensity={0.22} roughness={0.6} />
+                  </mesh>
+                  <mesh position={[0.04, -0.028, 0]} rotation={[0, 0, -0.5]} scale={[0.85, 0.6, 0.3]} castShadow>
+                    <sphereGeometry args={[0.04, 10, 8]} />
+                    <meshStandardMaterial color={colors.personBowDark} emissive={colors.personBowDark} emissiveIntensity={0.2} roughness={0.6} />
+                  </mesh>
+                </group>
+              ))}
+              <mesh position={[0, 0, -0.008]} castShadow>
+                <sphereGeometry args={[0.018, 10, 8]} />
+                <meshStandardMaterial color={colors.personBowDark} emissive={colors.personBowDark} emissiveIntensity={0.25} roughness={0.5} />
+              </mesh>
+            </group>
             <group ref={ponytailTipRef} position={[0, -0.195, 0]}>
               <mesh position={[0, -0.065, 0]} castShadow>
                 <capsuleGeometry args={[0.043, 0.1, 4, 8]} />
@@ -220,6 +242,8 @@ export function Person() {
             </group>
           </group>
         </group>
+
+        <HelpBubble position={[0, 1.72, 0]} />
 
         {/* Brazos */}
         <group ref={armLeftRef} position={[0.245, 0.55, 0]}>

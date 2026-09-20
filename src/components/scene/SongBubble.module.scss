@@ -122,3 +122,20 @@
     transform: scale(0.7) translateY(6px);
   }
 }
+
+// Burbuja de ayuda de la protagonista: solo se lee, nunca captura toques (no
+// debe estorbar el scroll) y su pico queda centrado sobre ella.
+.place[data-side='center'] {
+  transform: translate(-50%, calc(-100% - 10px));
+}
+.place[data-side='center'] .bubble::after {
+  left: calc(50% - 6px);
+}
+.bubble[data-static='true'] {
+  cursor: default;
+  pointer-events: none;
+
+  &::before {
+    display: none;
+  }
+}

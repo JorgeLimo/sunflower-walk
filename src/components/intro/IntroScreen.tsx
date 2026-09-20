@@ -78,12 +78,12 @@ export function IntroScreen({ onEnter }: IntroScreenProps) {
           Entrar
         </button>
         <div className={styles.swipe} aria-hidden="true">
-          <svg className={styles.swipeIcon} viewBox="0 0 44 64" width="42" height="62">
-            <g className={styles.chevrons} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <svg className={styles.swipeIcon} viewBox="0 0 44 64" width="54" height="80">
+            <g className={styles.chevrons} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 8l7-6 7 6" />
               <path d="M15 15l7-6 7 6" opacity="0.5" />
             </g>
-            <g className={styles.hand} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <g className={styles.hand} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 42V25a4 4 0 0 1 8 0v10a3.5 3.5 0 0 1 7 0a3.5 3.5 0 0 1 7 0v9c0 8-5 13-13 13h-3c-5 0-8-3-10-7l-4-7c-1-2 1-4 3-3l5 4z" />
             </g>
           </svg>
