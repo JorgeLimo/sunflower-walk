@@ -240,13 +240,31 @@ export function Person() {
         <group ref={legLeftRef} position={[0.1, 0, 0]}>
           <mesh position={[0, -HIP_HEIGHT / 2, 0]} castShadow>
             <capsuleGeometry args={[0.075, HIP_HEIGHT - 0.17, 4, 6]} />
-            <meshStandardMaterial color={colors.personOutfitShadow} roughness={0.9} />
+            <meshStandardMaterial color={colors.personJeans} roughness={0.9} />
+          </mesh>
+          {/* Zapatilla blanca sencilla: cuerpo achatado + suela clara. */}
+          <mesh position={[0, -HIP_HEIGHT + 0.05, 0.045]} scale={[0.95, 0.62, 1.55]} castShadow>
+            <sphereGeometry args={[0.085, 12, 10]} />
+            <meshStandardMaterial color={colors.personShoe} roughness={0.7} />
+          </mesh>
+          <mesh position={[0, -HIP_HEIGHT + 0.012, 0.05]} scale={[1, 0.28, 1.68]}>
+            <sphereGeometry args={[0.085, 12, 8]} />
+            <meshStandardMaterial color={colors.personSole} roughness={0.85} />
           </mesh>
         </group>
         <group ref={legRightRef} position={[-0.1, 0, 0]}>
           <mesh position={[0, -HIP_HEIGHT / 2, 0]} castShadow>
             <capsuleGeometry args={[0.075, HIP_HEIGHT - 0.17, 4, 6]} />
-            <meshStandardMaterial color={colors.personOutfitShadow} roughness={0.9} />
+            <meshStandardMaterial color={colors.personJeans} roughness={0.9} />
+          </mesh>
+          {/* Zapatilla blanca sencilla: cuerpo achatado + suela clara. */}
+          <mesh position={[0, -HIP_HEIGHT + 0.05, 0.045]} scale={[0.95, 0.62, 1.55]} castShadow>
+            <sphereGeometry args={[0.085, 12, 10]} />
+            <meshStandardMaterial color={colors.personShoe} roughness={0.7} />
+          </mesh>
+          <mesh position={[0, -HIP_HEIGHT + 0.012, 0.05]} scale={[1, 0.28, 1.68]}>
+            <sphereGeometry args={[0.085, 12, 8]} />
+            <meshStandardMaterial color={colors.personSole} roughness={0.85} />
           </mesh>
         </group>
       </group>

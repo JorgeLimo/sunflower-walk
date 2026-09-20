@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { useScrollState } from '../story/scrollContext';
 import { getCycleProgress, getSkyState, createSkyState } from '../../lib/dayNightCycle';
 import { experience } from '../../lib/experienceStore';
-import { BANNER_TALL, BANNER_WIDE } from '../../lib/airplaneBannerTexture';
+import { BANNER } from '../../lib/airplaneBannerTexture';
 import { randomBetween } from '../../lib/random';
 
 // La primera aparición llega ~30 s después de presionar "Entrar" y las
@@ -49,11 +49,21 @@ interface Flight {
   roll: number;
 }
 
+// Alto de la letra en pantalla (en anchos de pantalla). Con el mensaje en una
+// línea la tela se dimensiona a partir de esto, así la bandera queda
+// compacta y la letra se mantiene legible (~13 px en escritorio).
+const TEXT_HEIGHT = { wide: 0.0098, medium: 0.0154, tall: 0.0316 };
+
 function pickLayout(aspect: number): Layout {
-  if (aspect < 0.85) return { tall: true, flagLength: 0.45, planeLength: 0.16, speed: 0.11 };
-  if (aspect < 1.3) return { tall: false, flagLength: 0.36, planeLength: 0.1, speed: 0.1 };
-  return { tall: false, flagLength: 0.23, planeLength: 0.075, speed: 0.1 };
+  if (aspect < 0.85) return { tall: true, flagLength: TEXT_HEIGHT.tall / BANNER.textFraction, planeLength: 0.16, speed: 0.11 };
+  if (aspect < 1.3) return { tall: false, flagLength: TEXT_HEIGHT.medium / BANNER.textFraction, planeLength: 0.1, speed: 0.1 };
+  return { tall: false, flagLength: TEXT_HEIGHT.wide / BANNER.textFraction, planeLength: 0.075, speed: 0.1 };
 }
+
+// Las ondas de la tela se miden contra el alto que tenía la bandera de dos
+// líneas (aspecto 4.35), no contra el alto actual, para que el movimiento sea
+// el mismo aunque ahora la tela sea más baja.
+const WAVE_REF_HEIGHT = 1 / 4.35;
 
 /** Bandera normalizada: ancho 1 (de x=-1 a x=0, el borde 0 es el que va
  * atado al avión) y alto 1/aspect. Se escala luego al largo real. */
@@ -98,10 +108,10 @@ export function Airplane() {
   const navRightRef = useRef<THREE.Mesh>(null);
 
   const parts = useMemo(createPlaneParts, []);
-  const wide = useMemo(() => createFlagGeometry(BANNER_WIDE.aspect), []);
-  const tall = useMemo(() => createFlagGeometry(BANNER_TALL.aspect), []);
-  const flagMaterialWide = useMemo(() => makeFlagMaterial(BANNER_WIDE.texture), []);
-  const flagMaterialTall = useMemo(() => makeFlagMaterial(BANNER_TALL.texture), []);
+  const wide = useMemo(() => createFlagGeometry(BANNER.aspect), []);
+  const tall = useMemo(() => createFlagGeometry(BANNER.aspect), []);
+  const flagMaterialWide = useMemo(() => makeFlagMaterial(BANNER.texture), []);
+  const flagMaterialTall = useMemo(() => makeFlagMaterial(BANNER.texture), []);
   const ropeGeometry = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(12), 3));
@@ -132,7 +142,7 @@ export function Airplane() {
     if (!flight.current && experience.started && elapsed.current >= nextSpawnAt.current) {
       const aspect = camera.aspect;
       const layout = pickLayout(aspect);
-      const banner = layout.tall ? BANNER_TALL : BANNER_WIDE;
+      const banner = BANNER;
       const flagHeight = layout.flagLength / banner.aspect;
       // Altura en la franja del cielo (arriba del horizonte), según el
       // alto de la bandera, con variación de un vuelo a otro.
@@ -254,11 +264,11 @@ export function Airplane() {
         const v = by / h;
         const amp = Math.pow(u, 1.25);
         const wave = 2 * Math.PI * f.waves * u - f.omega * t + f.phase;
-        const dy = amp * f.ampY * h * Math.sin(wave) + amp * 0.025 * h * Math.sin(wave * 2.3 + v * 3);
-        const dz = amp * f.ampZ * h * Math.sin(wave * 0.92 + v * 2.2 + f.phase * 0.7);
+        const dy = amp * f.ampY * WAVE_REF_HEIGHT * Math.sin(wave) + amp * 0.025 * WAVE_REF_HEIGHT * Math.sin(wave * 2.3 + v * 3);
+        const dz = amp * f.ampZ * WAVE_REF_HEIGHT * Math.sin(wave * 0.92 + v * 2.2 + f.phase * 0.7);
         const dx = amp * 0.008 * Math.sin(wave * 1.4);
-        const flutter = u > 0.85 ? (u - 0.85) * 0.2 * h * Math.sin(t * 9 + v * 4 + f.phase) : 0;
-        pos.setXYZ(i, bx + dx, by + dy + flutter - 0.06 * h * u * u, dz);
+        const flutter = u > 0.85 ? (u - 0.85) * 0.2 * WAVE_REF_HEIGHT * Math.sin(t * 9 + v * 4 + f.phase) : 0;
+        pos.setXYZ(i, bx + dx, by + dy + flutter - 0.06 * WAVE_REF_HEIGHT * u * u, dz);
       }
       pos.needsUpdate = true;
       flagData.geo.computeVertexNormals();

@@ -31,11 +31,16 @@ export const colors = {
   tulipWhiteShadow: '#e8dfc9',
 
   personSkin: '#f3caa1',
-  personHair: '#4a3226',
+  // Castaño cálido y natural.
+  personHair: '#7b4a2c',
   personOutfit: '#d97b5f',
   personOutfitShadow: '#c1614a',
   personScarf: '#f2efe4',
   personBlush: '#f0a898',
+  // Jean azul casual y zapatillas blancas de la protagonista.
+  personJeans: '#4c6f9e',
+  personShoe: '#f7f5ef',
+  personSole: '#d8d3c8',
 
   // Personitas motivadoras del camino: mismo tono de piel/pelo que la
   // protagonista (misma familia de personajes, ver Person.tsx) pero cada
