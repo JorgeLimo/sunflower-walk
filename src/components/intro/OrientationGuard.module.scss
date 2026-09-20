@@ -1,0 +1,75 @@
+@use '../../styles/variables' as *;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+  background:
+    radial-gradient(ellipse at 50% 46%, #fff8e6 0%, rgba(255, 246, 224, 0) 62%),
+    radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(226, 190, 140, 0.32) 100%),
+    linear-gradient(180deg, #fdf3dc 0%, #f8e8c8 100%);
+}
+
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 90vmax;
+  height: 90vmax;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 200, 120, 0.28) 0%, rgba(255, 200, 120, 0) 60%);
+  pointer-events: none;
+}
+
+.content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0 1.5rem;
+  color: $ink;
+}
+
+// El teléfono gira de horizontal a vertical, se queda un momento y repite.
+.phone {
+  opacity: 0.8;
+  animation: rotate-phone 3.2s $ease-soft infinite;
+}
+
+.arrow {
+  opacity: 0.4;
+  margin-top: -0.2rem;
+}
+
+.text {
+  margin: 0;
+  font-family: $font-display;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  text-align: center;
+  opacity: 0.8;
+}
+
+@keyframes rotate-phone {
+  0%,
+  15% {
+    transform: rotate(-90deg);
+  }
+  55%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone {
+    animation: none;
+  }
+}

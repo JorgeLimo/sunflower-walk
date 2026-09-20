@@ -4,6 +4,16 @@ import type { TulipTierCounts } from './generateTileTulips';
 
 export type ViewportTier = 'mobile' | 'tablet' | 'desktop';
 
+// Teléfono girado a horizontal: su ancho pasaría a ser el largo (p. ej. 844),
+// lo que cambiaría el nivel de calidad a "tablet" y regeneraría todo el campo
+// solo por girar. Se mide entonces con el lado corto, así el nivel es el
+// mismo en vertical y horizontal (la experiencia está tapada en horizontal).
+const LANDSCAPE_PHONE = '(orientation: landscape) and (pointer: coarse) and (max-height: 520px)';
+
+function effectiveWidth(): number {
+  return window.matchMedia(LANDSCAPE_PHONE).matches ? window.innerHeight : window.innerWidth;
+}
+
 function computeTier(width: number): ViewportTier {
   if (width < 640) return 'mobile';
   if (width < 1024) return 'tablet';
@@ -13,14 +23,14 @@ function computeTier(width: number): ViewportTier {
 /** Detecta el tier de viewport (mobile/tablet/desktop) y lo actualiza en resize. */
 export function useViewportTier(): ViewportTier {
   const [tier, setTier] = useState<ViewportTier>(() =>
-    typeof window === 'undefined' ? 'desktop' : computeTier(window.innerWidth),
+    typeof window === 'undefined' ? 'desktop' : computeTier(effectiveWidth()),
   );
 
   useEffect(() => {
     let frame = 0;
     const handleResize = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => setTier(computeTier(window.innerWidth)));
+      frame = requestAnimationFrame(() => setTier(computeTier(effectiveWidth())));
     };
     window.addEventListener('resize', handleResize);
     return () => {

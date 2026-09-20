@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { ScrollStateContext, type ScrollState, type ScrollStateRef } from './scrollContext';
 import { SCROLL_TO_WORLD } from '../../lib/constants';
 import { clamp } from '../../lib/random';
+import { orientationStore } from '../../lib/orientationStore';
 import styles from './ScrollController.module.scss';
 
 /** Cuántas alturas de pantalla de margen se dejan antes de recentrar el
@@ -35,6 +36,9 @@ export function ScrollController({ children }: { children: ReactNode }) {
   }).current;
 
   const lastScrollY = useRef(0);
+  // Tamaño de ventana en el último evento de scroll: si cambió, el salto de
+  // `scrollY` viene del re-layout (p. ej. al girar el teléfono), no del usuario.
+  const lastSize = useRef({ w: 0, h: 0 });
   const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,6 +58,14 @@ export function ScrollController({ children }: { children: ReactNode }) {
     };
 
     const handleScroll = () => {
+      // Con el teléfono en horizontal el aviso tapa todo: los saltos de
+      // `scrollY` por el cambio de tamaño no son avance del usuario.
+      const sizeChanged = lastSize.current.w !== window.innerWidth || lastSize.current.h !== window.innerHeight;
+      lastSize.current = { w: window.innerWidth, h: window.innerHeight };
+      if (orientationStore.isLocked() || sizeChanged) {
+        lastScrollY.current = window.scrollY;
+        return;
+      }
       const y = window.scrollY;
       const rawDelta = y - lastScrollY.current;
       lastScrollY.current = y;
@@ -71,8 +83,33 @@ export function ScrollController({ children }: { children: ReactNode }) {
       lastScrollY.current = mid;
     }
 
+    // Al volver a vertical, se toma la posición de scroll actual como nueva
+    // referencia (una vez asentado el layout) para que el primer gesto no
+    // cuente como un salto: el recorrido sigue exactamente donde estaba.
+    const offOrientation = orientationStore.subscribe(() => {
+      if (orientationStore.isLocked()) return;
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          lastScrollY.current = window.scrollY;
+        }),
+      );
+    });
+
+    lastSize.current = { w: window.innerWidth, h: window.innerHeight };
+    // El re-layout de un giro puede tardar en reflejarse en `scrollY`: cualquier
+    // cambio de tamaño re-toma la referencia.
+    const handleResize = () => {
+      lastSize.current = { w: window.innerWidth, h: window.innerHeight };
+      lastScrollY.current = window.scrollY;
+    };
+    window.addEventListener('resize', handleResize);
+
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
+      offOrientation();
+    };
   }, [stateRef]);
 
   return (
