@@ -20,7 +20,6 @@ export const GREETER_PHRASES: string[] = [
   'Todo estará bien',
   'Lo estás haciendo increíble',
   'Vas mejor de lo que crees',
-  'No estás sola',
   'Todo esfuerzo vale la pena',
   'Confía en el proceso',
   'Puedes con todo',
@@ -30,7 +29,6 @@ export const GREETER_PHRASES: string[] = [
   'Tienes una bonita sonrisa',
   'Lo estás consiguiendo',
   'Sigue brillando',
-  'No olvides cuánto has crecido',
   'Cada día lo haces mejor',
   'Se acabaron los texto xd'
 ];
