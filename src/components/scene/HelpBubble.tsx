@@ -10,6 +10,11 @@ const IDLE_BEFORE_HINT_S = 6;
 const VISIBLE_MAX_S = 14;
 const EXIT_MS = 300;
 
+// Mismo criterio que la indicación de la pantalla inicial: en pantallas
+// táctiles (móvil y tablet) se dice "desliza", nunca "scroll".
+const TOUCH_QUERY = '(hover: none) and (pointer: coarse)';
+const isTouchDevice = () => typeof window !== 'undefined' && window.matchMedia(TOUCH_QUERY).matches;
+
 /**
  * Pista de la protagonista: si el usuario entra y se queda sin hacer scroll,
  * ella dice "Haz scroll para moverme 😊". Sale una sola vez: desaparece en
@@ -18,6 +23,7 @@ const EXIT_MS = 300;
  */
 export function HelpBubble({ position }: { position: [number, number, number] }) {
   const scrollState = useScrollState();
+  const [touch] = useState(isTouchDevice);
   const [phase, setPhase] = useState<'idle' | 'shown' | 'leaving' | 'done'>('idle');
   const startedAt = useRef<number | null>(null);
   const shownAt = useRef(0);
@@ -49,7 +55,7 @@ export function HelpBubble({ position }: { position: [number, number, number] })
       <Html zIndexRange={[30, 0]}>
         <div className={styles.place} data-side="center">
           <div className={styles.bubble} data-static="true" data-leaving={phase === 'leaving'} role="status">
-            Haz scroll para moverme 😊
+            {touch ? 'Desliza para moverme 😊' : 'Haz scroll para moverme 😊'}
           </div>
         </div>
       </Html>

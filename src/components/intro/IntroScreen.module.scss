@@ -63,6 +63,20 @@
   }
 }
 
+// Texto según el dispositivo: "Scroll" con mouse, "Desliza" en pantallas
+// táctiles (móvil y tablet).
+.touchOnly {
+  display: none;
+}
+@media (hover: none) and (pointer: coarse) {
+  .desktopOnly {
+    display: none;
+  }
+  .touchOnly {
+    display: inline;
+  }
+}
+
 // Indicación discreta del gesto, debajo del botón.
 .swipe {
   display: flex;

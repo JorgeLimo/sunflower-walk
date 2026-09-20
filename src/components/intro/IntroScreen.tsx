@@ -87,7 +87,10 @@ export function IntroScreen({ onEnter }: IntroScreenProps) {
               <path d="M17 42V25a4 4 0 0 1 8 0v10a3.5 3.5 0 0 1 7 0a3.5 3.5 0 0 1 7 0v9c0 8-5 13-13 13h-3c-5 0-8-3-10-7l-4-7c-1-2 1-4 3-3l5 4z" />
             </g>
           </svg>
-          <span className={styles.swipeLabel}>Scroll</span>
+          <span className={styles.swipeLabel}>
+            <span className={styles.desktopOnly}>Scroll</span>
+            <span className={styles.touchOnly}>Desliza</span>
+          </span>
         </div>
       </div>
     </motion.div>
